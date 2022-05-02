@@ -1,3 +1,25 @@
-Continue on 3. Arrow Keys
-    note: bug when cursor location is negative - should be clamp to zero if negative??
-make github repo for this version of acorn called Acorn2
+Todo after done with tutorial
+    Should convert all tabs to spaces - this will simplify code by a bit
+        eg, get rid of render_x and just use cursor_x.
+        do this after entire editor tutorial is done, and make sure to save it to version control before changing it
+    Change theme to Oblivion/80s sci fi theme
+    Add vim style insert and command modes
+
+Todo anytime
+    Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
+
+Notes on Progress
+    Part 1:
+
+    Part 2:
+
+    Part 3:
+
+    Part 4:
+        Display Single Line (DONE)
+        Display Multiple Lines (DONE)
+        Vertical Scrolling (DONE)
+        Horizontal Scrolling (DONE)
+        Rendering Tabs (DONE)
+        Scrolling with PgUp, PgDown, Home and End (DONE)
+        Status Bar
