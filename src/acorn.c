@@ -200,6 +200,20 @@ int editor_row_cursor_x_to_render_x(struct EditorRow* row, int cursor_x) {
     return render_x;
 }
 
+int editor_row_render_x_to_cursor_x(struct EditorRow* row, int render_x) {
+    int current_render_x = 0;
+    int cursor_x;
+    for (cursor_x = 0; cursor_x < row->size; cursor_x++) {
+        if (row->chars[cursor_x] == '\t')
+            current_render_x += (ACORN_TAB_STOP - 1) - (current_render_x % ACORN_TAB_STOP);
+        current_render_x++;
+
+        if (current_render_x > render_x) return cursor_x;
+    }
+
+    return cursor_x;
+}
+
 void editor_update_row(struct EditorRow* row) {
     //count tabs
     int tabs = 0;
@@ -389,6 +403,26 @@ void editor_save() {
     }
     free(buffer);
     editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
+}
+
+/*** find ***/
+void editor_find() {
+    char* query = editor_prompt("Search: %s (ESC to cancel)");
+    if (query == NULL) return;
+
+    int i;
+    for (i = 0; i < e.num_rows; i++) {
+        struct EditorRow* row = &e.row[i];
+        char* match = strstr(row->render, query);
+        if (match) {
+            e.cursor_y = i;
+            e.cursor_x = editor_row_render_x_to_cursor_x(row, match - row->render);
+            e.row_offset = e.num_rows; //setting offset so that next screen refresh will scroll up so query is at top of screen
+            break;
+        }
+    }
+
+    free(query);
 }
 
 /*** append buffer ***/
@@ -635,6 +669,9 @@ void editor_process_keypress() {
             if (e.cursor_y < e.num_rows)
                 e.cursor_x = e.row[e.cursor_y].size;
             break;
+        case CTRL_KEY('f'):
+            editor_find();
+            break;
         case BACKSPACE:
         case CTRL_KEY('h'):
         case DEL_KEY:
@@ -701,7 +738,7 @@ int main(int argc, char* argv[]) {
         editor_open(argv[1]);
     }
 
-    editor_set_status_message("HELP: Ctrl-S = save | Ctrl-Q = quit");
+    editor_set_status_message("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
     while (1) {
         editor_refresh_screen();

@@ -1,5 +1,5 @@
 Todo after done with tutorial
-    Should convert all tabs to spaces - this will simplify code by a bit
+    Should convert all tabs to spaces - this will simplify code by a bit (render_x can be removed completely, including conversion functions to/from cursor_x)
         eg, get rid of render_x and just use cursor_x.
         do this after entire editor tutorial is done, and make sure to save it to version control before changing it
     Change theme to Oblivion/80s sci fi theme
@@ -41,6 +41,8 @@ Notes on Progress
         Simple Backspacing (DONE)
         Backspacing at Start of Line (DONE)
         Enter Key (DONE)
-        Editor Prompt and Save As <- Start here
+        Editor Prompt and Save As (DONE)
     Part 6: Search
+        Search
+        Incremental Search
     Part 7: Syntax Highlighting
