@@ -3,11 +3,17 @@ Todo after done with tutorial
         eg, get rid of render_x and just use cursor_x.
         do this after entire editor tutorial is done, and make sure to save it to version control before changing it
     Change theme to Oblivion/80s sci fi theme
-    Add vim style insert and command modes
+    Add vim style navigation (start with adding Insert/Command modes and allow navigation with hjkl)
+    Add tabs / multiple buffers (display filename or tab number on top) - this is easier than vim's :ls every time to see buffers
+    Add network support to allow two people to edit file at the same time (super advanced stuff)
+        one person (main) would open the file, and the other person connects to the open file
+        the main has the ability to write to file (read is allowed for everyone connected)
+    Add syntax highighting for Cebra scripting language (or Python or Lua)
 
 Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
     Rename EditorConfig.row to EditorConfig.rows (since it's a point/array into all the rows)
+    Weird bug when pressing 'Enter' when cursor is on first line of file
 
 Notes on Progress
     Part 1: Setup
