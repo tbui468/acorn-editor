@@ -292,7 +292,7 @@ void editor_insert_char(int c) {
 }
 
 void editor_insert_new_line() {
-    if (e.cursor_y == 0) {
+    if (e.cursor_x == 0) {
         editor_insert_row(e.cursor_y, "", 0);
     } else {
         struct EditorRow* row = &e.row[e.cursor_y];

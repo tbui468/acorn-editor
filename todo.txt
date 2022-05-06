@@ -14,6 +14,9 @@ Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
     Rename EditorConfig.row to EditorConfig.rows (since it's a point/array into all the rows)
     Weird bug when pressing 'Enter' when cursor is on first line of file
+        When on first line only
+        If x position is 0, it works fine
+        otherwise there's a bug where the entire line is moved down and NOT just the string to the right of the cursor
 
 Notes on Progress
     Part 1: Setup
