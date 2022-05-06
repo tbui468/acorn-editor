@@ -7,19 +7,31 @@ Todo after done with tutorial
 
 Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
+    Rename EditorConfig.row to EditorConfig.rows (since it's a point/array into all the rows)
 
 Notes on Progress
-    Part 1:
+    Part 1: Setup
 
-    Part 2:
+    Part 2: Entering Raw Mode
 
-    Part 3:
+    Part 3: Raw Input and Output
 
-    Part 4:
+    Part 4: A Text Viewer
         Display Single Line (DONE)
         Display Multiple Lines (DONE)
         Vertical Scrolling (DONE)
         Horizontal Scrolling (DONE)
         Rendering Tabs (DONE)
         Scrolling with PgUp, PgDown, Home and End (DONE)
-        Status Bar
+        Status Bar (DONE)
+    Part 5: A Text Editor
+        Inserting Characters (DONE)
+        Saving (DONE)
+        Dirty Flag (DONE)
+        Quit Confirmation (DONE)
+        Simple Backspacing (DONE)
+        Backspacing at Start of Line (DONE)
+        Enter Key (DONE)
+        Editor Prompt and Save As <- Start here
+    Part 6: Search
+    Part 7: Syntax Highlighting

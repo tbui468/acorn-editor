@@ -7,6 +7,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -20,9 +21,11 @@
 /*** defines ***/
 #define ACORN_VERSION "0.0.1"
 #define ACORN_TAB_STOP 4
+#define ACORN_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 enum EditorKey {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
@@ -51,6 +54,7 @@ struct EditorConfig {
     int screenrows;
     int screencols;
     int num_rows;
+    int dirty;
     struct EditorRow* row;
     char* filename;
     char status_msg[80];
@@ -59,6 +63,9 @@ struct EditorConfig {
 };
 
 struct EditorConfig e;
+
+/*** prototypes ***/
+void editor_set_status_message(const char* fmt, ...);
 
 /*** terminal ***/
 void die(const char* s) {
@@ -214,10 +221,12 @@ void editor_update_row(struct EditorRow* row) {
     row->render_size = idx;
 }
 
-void editor_append_row(char* s, size_t len) {
-    e.row = realloc(e.row, sizeof(struct EditorRow) * (e.num_rows + 1));
+void editor_insert_row(int at, char* s, size_t len) {
+    if (at < 0 || at > e.num_rows) return;
 
-    int at = e.num_rows;
+    e.row = realloc(e.row, sizeof(struct EditorRow) * (e.num_rows + 1));
+    memmove(&e.row[at + 1], &e.row[at], sizeof(struct EditorRow) * (e.num_rows - at));
+
     e.row[at].size = len;
     e.row[at].chars = malloc(len + 1);
     memcpy(e.row[at].chars, s, len);
@@ -228,9 +237,108 @@ void editor_append_row(char* s, size_t len) {
     editor_update_row(&e.row[at]);
 
     e.num_rows++;
+    e.dirty++;
+}
+
+void editor_free_row(struct EditorRow* row) {
+    free(row->render);
+    free(row->chars);
+}
+
+void editor_del_row(int at) {
+    if (at < 0 || at >= e.num_rows) return;
+    editor_free_row(&e.row[at]);
+    memmove(&e.row[at], &e.row[at + 1], sizeof(struct EditorRow) * (e.num_rows - at - 1));
+    e.num_rows--;
+    e.dirty++;
+}
+
+void editor_row_insert_char(struct EditorRow* row, int at, int c) {
+    if (at < 0 || at > row->size) at = row->size;
+    row->chars = realloc(row->chars, row->size + 2); //one for inserted character and one for null terminator
+    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+    row->size++;
+    row->chars[at] = c;
+    editor_update_row(row);
+    e.dirty++;
+}
+
+void editor_row_append_string(struct EditorRow* row, char* s, size_t len) {
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&row->chars[row->size], s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    editor_update_row(row);
+    e.dirty++;
+}
+
+void editor_row_del_char(struct EditorRow* row, int at) {
+    if (at < 0 || at >= row->size) return;
+    memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+    row->size--;
+    editor_update_row(row);
+    e.dirty++;
+}
+
+/*** editor operations ***/
+void editor_insert_char(int c) {
+    if (e.cursor_y == e.num_rows) {
+        editor_insert_row(e.num_rows, "", 0);
+    }
+    editor_row_insert_char(&e.row[e.cursor_y], e.cursor_x, c);
+    e.cursor_x++;
+}
+
+void editor_insert_new_line() {
+    if (e.cursor_y == 0) {
+        editor_insert_row(e.cursor_y, "", 0);
+    } else {
+        struct EditorRow* row = &e.row[e.cursor_y];
+        editor_insert_row(e.cursor_y + 1, &row->chars[e.cursor_x], row->size - e.cursor_x);
+        row = &e.row[e.cursor_y]; //need to reassigned row in case realloc in 'editor_insert_row' moved some memory
+        row->size = e.cursor_x;
+        row->chars[row->size] = '\0';
+        editor_update_row(row);
+    }
+    e.cursor_y++;
+    e.cursor_x = 0;
+}
+
+void editor_del_char() {
+    if (e.cursor_y == e.num_rows) return;
+    if (e.cursor_x == 0 && e.cursor_y == 0) return;
+
+    struct EditorRow* row = &e.row[e.cursor_y];
+    if (e.cursor_x > 0) {
+        editor_row_del_char(row, e.cursor_x - 1);
+        e.cursor_x--;
+    } else {
+        e.cursor_x = e.row[e.cursor_y - 1].size;
+        editor_row_append_string(&e.row[e.cursor_y - 1], row->chars, row->size);
+        editor_del_row(e.cursor_y);
+        e.cursor_y--;
+    }
 }
 
 /*** file i/o ***/
+char* editor_rows_to_string(int* buffer_length) {
+    int total_length = 0;
+    int j;
+    for (j = 0; j < e.num_rows; j++)
+        total_length += e.row[j].size + 1;
+    *buffer_length = total_length;
+
+    char* buffer = malloc(total_length);
+    char* p = buffer;
+    for (j = 0; j < e.num_rows; j++) {
+        memcpy(p, e.row[j].chars, e.row[j].size);
+        p += e.row[j].size;
+        *p = '\n';
+        p++;
+    }
+    return buffer;
+}
+
 void editor_open(char* filename) {
     free(e.filename);
     e.filename = strdup(filename);
@@ -245,10 +353,34 @@ void editor_open(char* filename) {
         while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
             linelen--;
 
-        editor_append_row(line, linelen);
+        editor_insert_row(e.num_rows, line, linelen);
     }
     free(line);
     fclose(fp);
+    e.dirty = 0;
+}
+
+void editor_save() {
+    if (e.filename == NULL) return; //return if file is NULL for now
+
+    int len;
+    char* buffer = editor_rows_to_string(&len);
+
+    int fd = open(e.filename, O_RDWR | O_CREAT, 0644); //0644 is standard permissions - owner gets read/write, otherwise only read
+    if (fd != -1) {
+        if (ftruncate(fd, len) != -1) {
+            if (write(fd, buffer, len) == len) {
+                close(fd);
+                free(buffer);
+                e.dirty = 0;
+                editor_set_status_message("%d bytes written to disk", len);
+                return;
+            }
+        }
+        close(fd);
+    }
+    free(buffer);
+    editor_set_status_message("Can't save! I/O error: %s", strerror(errno));
 }
 
 /*** append buffer ***/
@@ -330,8 +462,8 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     append_buffer_append(ab, "\x1b[7m", 4); // switch to inverted color
 
     char status[80];
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines",
-            e.filename ? e.filename : "[No Name]", e.num_rows);
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+            e.filename ? e.filename : "[No Name]", e.num_rows, e.dirty ? "(modified)": "");
     char rstatus[80];
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", e.cursor_y + 1, e.num_rows);
 
@@ -351,7 +483,7 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
 }
 
 void editor_draw_message_bar(struct AppendBuffer* ab) {
-    append_buffer_append(ab, "\x1b[K", 3);
+    append_buffer_append(ab, "\x1b[K", 3); //seems like using <esc>[K then resets cursor back to beginning of line
     int msglen = strlen(e.status_msg);
     append_buffer_append(ab, "\x1b[38;2;210;242;227m", 19); //change text color
     if (msglen > e.screencols) msglen = e.screencols;
@@ -432,13 +564,26 @@ void editor_move_cursor(int key) {
 }
 
 void editor_process_keypress() {
+    static int quit_times = ACORN_QUIT_TIMES;
+
     int c = editor_read_key();
 
     switch(c) {
+        case '\r':
+            editor_insert_new_line();
+            break;
         case CTRL_KEY('q'):
+            if (e.dirty && quit_times > 0) {
+                editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
+                quit_times--;
+                return;
+            }
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
+            break;
+        case CTRL_KEY('s'):
+            editor_save();
             break;
         case HOME_KEY:
             e.cursor_x = 0;
@@ -446,6 +591,12 @@ void editor_process_keypress() {
         case END_KEY:
             if (e.cursor_y < e.num_rows)
                 e.cursor_x = e.row[e.cursor_y].size;
+            break;
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
+            editor_del_char();
             break;
         case PAGE_UP:
         case PAGE_DOWN: 
@@ -468,7 +619,15 @@ void editor_process_keypress() {
         case ARROW_RIGHT:
             editor_move_cursor(c);
             break;
+        case CTRL_KEY('l'):
+        case '\x1b':
+            break;
+        default:
+            editor_insert_char(c);
+            break;
     }
+
+    quit_times = ACORN_QUIT_TIMES;
 }
 
 /*** init ***/
@@ -479,6 +638,7 @@ void init_editor() {
     e.row_offset = 0;
     e.col_offset = 0;
     e.num_rows = 0;
+    e.dirty = 0;
     e.row = NULL;
     e.filename = NULL;
     e.status_msg[0] = '\0';
@@ -498,7 +658,7 @@ int main(int argc, char* argv[]) {
         editor_open(argv[1]);
     }
 
-    editor_set_status_message("HELP: Ctrl-Q = quit");
+    editor_set_status_message("HELP: Ctrl-S = save | Ctrl-Q = quit");
 
     while (1) {
         editor_refresh_screen();
