@@ -9,6 +9,9 @@ Todo after done with tutorial
         one person (main) would open the file, and the other person connects to the open file
         the main has the ability to write to file (read is allowed for everyone connected)
     Add syntax highighting for Cebra scripting language (or Python or Lua)
+    User can put cursor on line after end of file now, but vim doesn't allow that - make it like vim since I like it that way
+
+    Could draw squares and try to make pong or snake game run in terminal?  Would need to adjust width/height of characters
 
 Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
@@ -20,17 +23,22 @@ Todo anytime
 
 Notes on Progress
     Part 1: Setup
-
     Part 2: Entering Raw Mode
-
+        Question: What do we need to do to enter raw mode?
+        Answer: 
     Part 3: Raw Input and Output
-
     Part 4: A Text Viewer
+        Question: Why do we have a function type for rows?  
+            Eg, editor_row_insert_char() and editor_insert_char()
+            or, editor_row_del_char() and editor_del_char()
+        Answer: Related to separation of responsibilities - need to be more specific: what responsibilities?
         Display Single Line (DONE)
         Display Multiple Lines (DONE)
         Vertical Scrolling (DONE)
         Horizontal Scrolling (DONE)
         Rendering Tabs (DONE)
+            Question: What is the difference between cursor_x and render_x?  
+            Answer:
         Scrolling with PgUp, PgDown, Home and End (DONE)
         Status Bar (DONE)
     Part 5: A Text Editor
@@ -43,6 +51,16 @@ Notes on Progress
         Enter Key (DONE)
         Editor Prompt and Save As (DONE)
     Part 6: Search
-        Search
+        Search (DONE)
         Incremental Search
+            Question: Why are we passing the callback function into editor_prompt instead of just performing
+                the search/move cursor inside of editor_find?  
+            Answer: We want to use the loop inside of the editor_prompt function to search all the rows
+                since the input to the prompt changes everytime the user enters/deletes a character.  This
+                allows for realtime updates to the search as the query changes, eg incremental search.  But
+                this only searches for first occurance of the query right now. Using the callbacks also
+                allows us to leave the editor_find function to save the cursor position and reset it when
+                the search is over.  
+            Question 2: Why is the callback being called in three places inside of the editor_prompt function?
+            Answer 2:
     Part 7: Syntax Highlighting
