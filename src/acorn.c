@@ -423,10 +423,20 @@ void editor_find_callback(char* query, int key) {
 }
 
 void editor_find() {
+    int saved_cx = e.cursor_x;
+    int saved_cy = e.cursor_y;
+    int saved_coloff = e.col_offset;
+    int saved_rowoff = e.row_offset;
+
     char* query = editor_prompt("Search: %s (ESC to cancel)", editor_find_callback);
 
     if (query) {
         free(query);
+    } else {
+    e.cursor_x = saved_cx;
+    e.cursor_y = saved_cy;
+    e.col_offset = saved_coloff;
+    e.row_offset = saved_rowoff;
     }
 }
 

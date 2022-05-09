@@ -8,6 +8,7 @@ Todo after done with tutorial
     Add network support to allow two people to edit file at the same time (super advanced stuff)
         one person (main) would open the file, and the other person connects to the open file
         the main has the ability to write to file (read is allowed for everyone connected)
+        Could be really useful for teacher/student coding sessions
     Add syntax highighting for Cebra scripting language (or Python or Lua)
     User can put cursor on line after end of file now, but vim doesn't allow that - make it like vim since I like it that way
 
