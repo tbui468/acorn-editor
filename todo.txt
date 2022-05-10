@@ -68,3 +68,4 @@ Notes on Progress
         Reset Cursor When Search Cancelled (DONE)
         Search Forward and Backwards
     Part 7: Syntax Highlighting
+        Highlight digits Red (DONE)

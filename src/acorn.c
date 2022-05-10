@@ -24,6 +24,13 @@
 #define ACORN_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k) & 0x1f)
 
+#define BG_COLOR "\x1b[48;2;18;27;40m"
+#define BG_COLOR_LEN 16
+#define FG_COLOR "\x1b[38;2;134;215;247m"
+#define FG_COLOR_LEN 19
+#define NUM_COLOR "\x1b[38;2;230;162;118m"
+#define NUM_COLOR_LEN 19
+
 enum EditorKey {
     BACKSPACE = 127,
     ARROW_LEFT = 1000,
@@ -37,12 +44,18 @@ enum EditorKey {
     PAGE_DOWN
 };
 
+enum EditorHighlight {
+    HL_NORMAL = 0,
+    HL_NUMBER
+};
+
 /*** data ***/
 struct EditorRow {
     int size;
     int render_size;
     char* chars;
     char* render;
+    unsigned char* hl;
 };
 
 struct EditorConfig {
@@ -187,6 +200,26 @@ int get_window_size(int* rows, int* cols) {
     }
 }
 
+/*** syntax highlighting ***/
+void editor_update_syntax(struct EditorRow* row) {
+    row->hl = realloc(row->hl, row->render_size);
+    memset(row->hl, HL_NORMAL, row->render_size);
+
+    int i;
+    for (i = 0; i < row->render_size; i++) {
+        if (isdigit(row->render[i])) {
+            row->hl[i] = HL_NUMBER;
+        }
+    }
+}
+
+int editor_syntax_to_color(int hl) {
+    switch (hl) {
+        case HL_NUMBER: return 31;
+        default: return 37;
+    }
+}
+
 /*** row operations ***/
 int editor_row_cursor_x_to_render_x(struct EditorRow* row, int cursor_x) {
     int render_x = 0;
@@ -235,6 +268,8 @@ void editor_update_row(struct EditorRow* row) {
     }
     row->render[idx] = '\0';
     row->render_size = idx;
+
+    editor_update_syntax(row);
 }
 
 void editor_insert_row(int at, char* s, size_t len) {
@@ -250,6 +285,7 @@ void editor_insert_row(int at, char* s, size_t len) {
     
     e.row[at].render_size = 0;
     e.row[at].render = NULL;
+    e.row[at].hl = NULL;
     editor_update_row(&e.row[at]);
 
     e.num_rows++;
@@ -259,6 +295,7 @@ void editor_insert_row(int at, char* s, size_t len) {
 void editor_free_row(struct EditorRow* row) {
     free(row->render);
     free(row->chars);
+    free(row->hl);
 }
 
 void editor_del_row(int at) {
@@ -527,7 +564,30 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             int len = e.row[file_row].render_size - e.col_offset;
             if (len < 0) len = 0;
             if (len > e.screencols) len = e.screencols;
-            append_buffer_append(ab, &e.row[file_row].render[e.col_offset], len);
+            char* c = &e.row[file_row].render[e.col_offset];
+            unsigned char* hl = &e.row[file_row].hl[e.col_offset];
+            int current_color = -1;
+            int j;
+            for (j = 0; j < len; j++) {
+                if (hl[j] == HL_NORMAL) {
+                    if (current_color != -1) {
+                        append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN);
+                        current_color = -1;
+                    }
+                    append_buffer_append(ab, &c[j], 1);
+                } else {
+                    /* Not using this currently */
+                    int color = editor_syntax_to_color(hl[j]);
+                    if (color != current_color) {
+                        current_color = color;
+                        //char buf[16];
+                        //int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
+                        append_buffer_append(ab, NUM_COLOR, NUM_COLOR_LEN);
+                    }
+                    append_buffer_append(ab, &c[j], 1);
+                }
+            }
+            append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN);
         }
 
         append_buffer_append(ab, "\x1b[K", 3); //clear to end of line
@@ -562,7 +622,7 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
 void editor_draw_message_bar(struct AppendBuffer* ab) {
     append_buffer_append(ab, "\x1b[K", 3); //seems like using <esc>[K then resets cursor back to beginning of line
     int msglen = strlen(e.status_msg);
-    append_buffer_append(ab, "\x1b[38;2;210;242;227m", 19); //change text color
+    append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN); //change text color
     if (msglen > e.screencols) msglen = e.screencols;
     if (msglen && time(NULL) - e.status_msg_time < 5)
         append_buffer_append(ab, e.status_msg, msglen);
@@ -576,8 +636,8 @@ void editor_refresh_screen() {
     append_buffer_append(&ab, "\x1b[?25l", 6); //hide cursor before redrawing to avoid flicker
     append_buffer_append(&ab, "\x1b[H", 3);  //move cursor back to beginning
 
-    append_buffer_append(&ab, "\x1b[48;2;18;27;40m", 16); //draw background color (38;2 is text, 48;2 is background
-    append_buffer_append(&ab, "\x1b[38;2;210;242;227m", 19); //draw text color (38;2 is text, 48;2 is background
+    append_buffer_append(&ab, BG_COLOR, BG_COLOR_LEN); 
+    append_buffer_append(&ab, FG_COLOR, FG_COLOR_LEN);
 
     editor_draw_rows(&ab);
     editor_draw_status_bar(&ab);
