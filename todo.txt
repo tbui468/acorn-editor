@@ -21,6 +21,7 @@ Todo anytime
         When on first line only
         If x position is 0, it works fine
         otherwise there's a bug where the entire line is moved down and NOT just the string to the right of the cursor
+    In editor_find_callback, the i in the for loop isn't being used... couldn't we just replace it with a loop using 'current'?
 
 Notes on Progress
     Part 1: Setup
@@ -53,7 +54,7 @@ Notes on Progress
         Editor Prompt and Save As (DONE)
     Part 6: Search
         Search (DONE)
-        Incremental Search
+        Incremental Search (DONE)
             Question: Why are we passing the callback function into editor_prompt instead of just performing
                 the search/move cursor inside of editor_find?  
             Answer: We want to use the loop inside of the editor_prompt function to search all the rows
@@ -64,4 +65,6 @@ Notes on Progress
                 the search is over.  
             Question 2: Why is the callback being called in three places inside of the editor_prompt function?
             Answer 2:
+        Reset Cursor When Search Cancelled (DONE)
+        Search Forward and Backwards
     Part 7: Syntax Highlighting

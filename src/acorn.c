@@ -407,14 +407,34 @@ void editor_save() {
 
 /*** find ***/
 void editor_find_callback(char* query, int key) {
-    if (key == '\r' || key == '\x1b') return;
+    static int last_match = -1;
+    static int direction = 1; //1 is forward, -1 is backwards
+    if (key == '\r' || key == '\x1b') {
+        last_match = -1;
+        direction = 1;
+    } else if (key == ARROW_RIGHT || key == ARROW_DOWN) {
+        direction = 1;
+    } else if (key == ARROW_LEFT || key == ARROW_UP) {
+        direction = -1;
+    } else {
+        last_match = -1;
+        direction = 1;
+    }
 
+    if (last_match == -1) direction = 1;
+    int current = last_match;
     int i;
     for (i = 0; i < e.num_rows; i++) {
-        struct EditorRow* row = &e.row[i];
+        //loop 'current'
+        current += direction;
+        if (current == -1) current = e.num_rows - 1;
+        else if (current == e.num_rows) current = 0;
+
+        struct EditorRow* row = &e.row[current];
         char* match = strstr(row->render, query);
         if (match) {
-            e.cursor_y = i;
+            last_match = current;
+            e.cursor_y = current;
             e.cursor_x = editor_row_render_x_to_cursor_x(row, match - row->render);
             e.row_offset = e.num_rows; //setting offset so that next screen refresh will scroll up so query is at top of screen
             break;
@@ -428,15 +448,15 @@ void editor_find() {
     int saved_coloff = e.col_offset;
     int saved_rowoff = e.row_offset;
 
-    char* query = editor_prompt("Search: %s (ESC to cancel)", editor_find_callback);
+    char* query = editor_prompt("Search: %s (Use ESC/Arrows/Enter)", editor_find_callback);
 
     if (query) {
         free(query);
     } else {
-    e.cursor_x = saved_cx;
-    e.cursor_y = saved_cy;
-    e.col_offset = saved_coloff;
-    e.row_offset = saved_rowoff;
+        e.cursor_x = saved_cx;
+        e.cursor_y = saved_cy;
+        e.col_offset = saved_coloff;
+        e.row_offset = saved_rowoff;
     }
 }
 
