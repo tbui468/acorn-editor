@@ -2,17 +2,20 @@ Todo after done with tutorial
     Should convert all tabs to spaces - this will simplify code by a bit (render_x can be removed completely, including conversion functions to/from cursor_x)
         eg, get rid of render_x and just use cursor_x.
         do this after entire editor tutorial is done, and make sure to save it to version control before changing it
-    Change theme to Oblivion/80s sci fi theme
-    Add vim style navigation (start with adding Insert/Command modes and allow navigation with hjkl)
-    Add tabs / multiple buffers (display filename or tab number on top) - this is easier than vim's :ls every time to see buffers
-    Add network support to allow two people to edit file at the same time (super advanced stuff)
+    Change theme to Oblivion/80s sci fi theme - add more colors and integrate them (EASY)
+    Add vim style navigation (start with adding Insert/Command modes and allow navigation with hjkl) (MODERATE)
+    Add tabs / multiple buffers (display filename or tab number on top) - this is easier than vim's :ls every time to see buffers (MODERATE)
+    Add network support to allow two people to edit file at the same time (super advanced stuff) (HARD)
         one person (main) would open the file, and the other person connects to the open file
         the main has the ability to write to file (read is allowed for everyone connected)
         Could be really useful for teacher/student coding sessions
-    Add syntax highighting for Cebra scripting language (or Python or Lua)
-    User can put cursor on line after end of file now, but vim doesn't allow that - make it like vim since I like it that way
+        STEPS: Set up two basic apps that can send data to each other (one is server, and one is client)
+            then integrate that with the editor app.  Might need to figure out if ports w/ tcp/ip work the same when using WSL
+    Add syntax highighting for Python (EASY)
+    User can put cursor on line after end of file now, but vim doesn't allow that - make it like vim since I like it that way (EASY)
 
     Could draw squares and try to make pong or snake game run in terminal?  Would need to adjust width/height of characters
+        Had this thought while laying in bed and not sleeping (just letting the mind wander)
 
 Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
@@ -69,3 +72,13 @@ Notes on Progress
         Search Forward and Backwards
     Part 7: Syntax Highlighting
         Highlight digits Red (DONE)
+        Refactor Syntax Highlighting (DONE)
+        Colorful Search Results <- continue here
+            Question: Why is the highlighting index set to 'match - row->render'???
+            Answer: match - row->render will give us the offset into render - this is the same offset for hl (which we index into using array access)
+            Question: Highlighting of search and 'enter'/'escape' aren't working as expected.  Last search remains highlighted even after pushing 'enter'
+                Check code for resetting highlights. And also try to understand how search works now
+                Problem is two-fold:
+                    Pushing 'enter' always goes to the FIRST instance of the word, and not the currently highlighted
+                    Words are not de-highlighted when the user pushes 'enter' or when the user cancels the search (it should be de-highlighted)
+                    Could go back and check code for the search function (there's a bug in my or their code)

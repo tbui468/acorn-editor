@@ -46,7 +46,8 @@ enum EditorKey {
 
 enum EditorHighlight {
     HL_NORMAL = 0,
-    HL_NUMBER
+    HL_NUMBER,
+    HL_MATCH
 };
 
 /*** data ***/
@@ -216,6 +217,7 @@ void editor_update_syntax(struct EditorRow* row) {
 int editor_syntax_to_color(int hl) {
     switch (hl) {
         case HL_NUMBER: return 31;
+        case HL_MATCH: return 34;
         default: return 37;
     }
 }
@@ -446,9 +448,20 @@ void editor_save() {
 void editor_find_callback(char* query, int key) {
     static int last_match = -1;
     static int direction = 1; //1 is forward, -1 is backwards
+
+    static int saved_hl_line;
+    static char* saved_hl = NULL;
+
+    if (saved_hl) {
+        memcpy(e.row[saved_hl_line].hl, saved_hl, e.row[saved_hl_line].render_size);
+        free(saved_hl);
+        saved_hl = NULL;
+    }
+
     if (key == '\r' || key == '\x1b') {
         last_match = -1;
         direction = 1;
+        return;
     } else if (key == ARROW_RIGHT || key == ARROW_DOWN) {
         direction = 1;
     } else if (key == ARROW_LEFT || key == ARROW_UP) {
@@ -474,6 +487,11 @@ void editor_find_callback(char* query, int key) {
             e.cursor_y = current;
             e.cursor_x = editor_row_render_x_to_cursor_x(row, match - row->render);
             e.row_offset = e.num_rows; //setting offset so that next screen refresh will scroll up so query is at top of screen
+
+            saved_hl_line = current;
+            saved_hl = malloc(row->render_size);
+            memcpy(saved_hl, row->hl, row->render_size);
+            memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
             break;
         }
     }
@@ -571,23 +589,22 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             for (j = 0; j < len; j++) {
                 if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
-                        append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN);
+                        append_buffer_append(ab, "\x1b[39m", 5);
                         current_color = -1;
                     }
                     append_buffer_append(ab, &c[j], 1);
                 } else {
-                    /* Not using this currently */
                     int color = editor_syntax_to_color(hl[j]);
                     if (color != current_color) {
                         current_color = color;
-                        //char buf[16];
-                        //int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
-                        append_buffer_append(ab, NUM_COLOR, NUM_COLOR_LEN);
+                        char buf[16];
+                        int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
+                        append_buffer_append(ab, buf, clen);
                     }
                     append_buffer_append(ab, &c[j], 1);
                 }
             }
-            append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN);
+            append_buffer_append(ab, "\x1b[39m", 5);
         }
 
         append_buffer_append(ab, "\x1b[K", 3); //clear to end of line
@@ -622,7 +639,6 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
 void editor_draw_message_bar(struct AppendBuffer* ab) {
     append_buffer_append(ab, "\x1b[K", 3); //seems like using <esc>[K then resets cursor back to beginning of line
     int msglen = strlen(e.status_msg);
-    append_buffer_append(ab, FG_COLOR, FG_COLOR_LEN); //change text color
     if (msglen > e.screencols) msglen = e.screencols;
     if (msglen && time(NULL) - e.status_msg_time < 5)
         append_buffer_append(ab, e.status_msg, msglen);
@@ -635,9 +651,6 @@ void editor_refresh_screen() {
 
     append_buffer_append(&ab, "\x1b[?25l", 6); //hide cursor before redrawing to avoid flicker
     append_buffer_append(&ab, "\x1b[H", 3);  //move cursor back to beginning
-
-    append_buffer_append(&ab, BG_COLOR, BG_COLOR_LEN); 
-    append_buffer_append(&ab, FG_COLOR, FG_COLOR_LEN);
 
     editor_draw_rows(&ab);
     editor_draw_status_bar(&ab);
