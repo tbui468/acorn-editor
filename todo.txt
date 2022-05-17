@@ -82,3 +82,4 @@ Notes on Progress
                     Pushing 'enter' always goes to the FIRST instance of the word, and not the currently highlighted
                     Words are not de-highlighted when the user pushes 'enter' or when the user cancels the search (it should be de-highlighted)
                     Could go back and check code for the search function (there's a bug in my or their code)
+        Detect Filetype <- start with creating editor_select_syntax_highlight function

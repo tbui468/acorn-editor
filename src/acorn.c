@@ -50,7 +50,15 @@ enum EditorHighlight {
     HL_MATCH
 };
 
+#define HL_HIGHLIGHT_NUMBERS (1<<0)
+
 /*** data ***/
+struct EditorSyntax {
+    char* file_type; //this will display in editor status bar
+    char** file_match; //an array of char* extensions for this filetype
+    int flags;
+};
+
 struct EditorRow {
     int size;
     int render_size;
@@ -73,10 +81,24 @@ struct EditorConfig {
     char* filename;
     char status_msg[80];
     time_t status_msg_time;
+    struct EditorSyntax* syntax;
     struct termios default_termios;
 };
 
 struct EditorConfig e;
+
+/*** filetypes ***/
+char* C_HL_extensions[] =  { ".c", ".h", ".cpp", NULL };
+
+struct EditorSyntax HLDB[] = {
+    {
+        "c",
+        C_HL_extensions,
+        HL_HIGHLIGHT_NUMBERS
+    },
+};
+
+#define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 
 /*** prototypes ***/
 void editor_set_status_message(const char* fmt, ...);
@@ -202,15 +224,34 @@ int get_window_size(int* rows, int* cols) {
 }
 
 /*** syntax highlighting ***/
+int is_separator(int c) {
+    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+}
+
 void editor_update_syntax(struct EditorRow* row) {
     row->hl = realloc(row->hl, row->render_size);
     memset(row->hl, HL_NORMAL, row->render_size);
 
-    int i;
-    for (i = 0; i < row->render_size; i++) {
-        if (isdigit(row->render[i])) {
-            row->hl[i] = HL_NUMBER;
+    if (e.syntax == NULL) return;
+
+    int prev_sep = 1;
+
+    int i = 0;
+    while (i < row->render_size) {
+        char c = row->render[i];
+        unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+
+        if (e.syntax->flags && HL_HIGHLIGHT_NUMBERS) {
+            if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
+                   (c == '.' && prev_hl == HL_NUMBER)) {
+                row->hl[i] = HL_NUMBER;
+                i++;
+                prev_sep = 0; //0 means we are currently highlighting a number
+                continue;
+            }
         }
+        prev_sep = is_separator(c);
+        i++;
     }
 }
 
@@ -219,6 +260,34 @@ int editor_syntax_to_color(int hl) {
         case HL_NUMBER: return 31;
         case HL_MATCH: return 34;
         default: return 37;
+    }
+}
+
+void editor_select_syntax_highlight() {
+    e.syntax = NULL;
+    if (e.filename == NULL) return;
+
+    char* ext = strrchr(e.filename, '.');
+
+    for (unsigned int j = 0; j < HLDB_ENTRIES; j++) {
+        struct EditorSyntax* s = &HLDB[j];
+        unsigned int i = 0;
+        while (s->file_match[i]) {
+            int is_ext = (s->file_match[i][0] == '.');
+            if ((is_ext && ext && !strcmp(ext, s->file_match[i])) || 
+                    (!is_ext && strstr(e.filename, s->file_match[i]))) {
+                e.syntax = s;
+
+                //highlight current file for when user saves as an extension
+                int filerow;
+                for (filerow = 0; filerow < e.num_rows; filerow++) {
+                    editor_update_syntax(&e.row[filerow]);
+                }
+
+                return;
+            }
+            i++;
+        }
     }
 }
 
@@ -398,6 +467,8 @@ void editor_open(char* filename) {
     free(e.filename);
     e.filename = strdup(filename);
 
+    editor_select_syntax_highlight();
+
     FILE* fp = fopen(filename, "r");
     if (!fp) die("fopen");
 
@@ -422,6 +493,7 @@ void editor_save() {
             editor_set_status_message("Save aborted");
             return;
         }
+        editor_select_syntax_highlight();
     }
 
     int len;
@@ -619,7 +691,8 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
             e.filename ? e.filename : "[No Name]", e.num_rows, e.dirty ? "(modified)": "");
     char rstatus[80];
-    int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", e.cursor_y + 1, e.num_rows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
+            e.syntax ? e.syntax->file_type : "no ft", e.cursor_y + 1, e.num_rows);
 
     if (len > e.screencols) len = e.screencols;
     append_buffer_append(ab, status, len);
@@ -835,6 +908,7 @@ void init_editor() {
     e.filename = NULL;
     e.status_msg[0] = '\0';
     e.status_msg_time = 0;
+    e.syntax = NULL;
 
     if (get_window_size(&e.screenrows, &e.screencols) == -1) {
         die("get_window_size");
