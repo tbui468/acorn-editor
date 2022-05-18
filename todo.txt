@@ -85,4 +85,5 @@ Notes on Progress
         Detect Filetype
         Single line Comments
         Keywords
-        Non-printable characters <- start here!!!
+        Non-printable characters
+        Multiline comments <- start here
