@@ -109,12 +109,29 @@ char* C_HL_keywords[] = {
     "void|", NULL
 };
 
+char* PY_HL_extensions[] =  { ".py", NULL };
+char* PY_HL_keywords[] = {
+    "and", "as", "assert", "async", "await", "break",
+    "class", "continue", "def", "del", "elif", "else", "except", "finally", "for",
+    "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+    "or", "pass", "raise", "return", "try", "while", "with", "yield",
+
+    "None|", "True|", "False|"
+};
+
 struct EditorSyntax HLDB[] = {
     {
         "c",
         C_HL_extensions,
         C_HL_keywords,
         "//", "/*", "*/",
+        HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+    },
+    {
+        "python",
+        PY_HL_extensions,
+        PY_HL_keywords,
+        "#", "", "",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
 };
@@ -246,7 +263,7 @@ int get_window_size(int* rows, int* cols) {
 
 /*** syntax highlighting ***/
 int is_separator(int c) {
-    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];:", c) != NULL;
 }
 
 void editor_update_syntax(struct EditorRow* row) {

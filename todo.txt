@@ -26,64 +26,8 @@ Todo anytime
         otherwise there's a bug where the entire line is moved down and NOT just the string to the right of the cursor
     In editor_find_callback, the i in the for loop isn't being used... couldn't we just replace it with a loop using 'current'?
 
-Notes on Progress
-    Part 1: Setup
-    Part 2: Entering Raw Mode
-        Question: What do we need to do to enter raw mode?
-        Answer: 
-    Part 3: Raw Input and Output
-    Part 4: A Text Viewer
-        Question: Why do we have a function type for rows?  
-            Eg, editor_row_insert_char() and editor_insert_char()
-            or, editor_row_del_char() and editor_del_char()
-        Answer: Related to separation of responsibilities - need to be more specific: what responsibilities?
-        Display Single Line (DONE)
-        Display Multiple Lines (DONE)
-        Vertical Scrolling (DONE)
-        Horizontal Scrolling (DONE)
-        Rendering Tabs (DONE)
-            Question: What is the difference between cursor_x and render_x?  
-            Answer:
-        Scrolling with PgUp, PgDown, Home and End (DONE)
-        Status Bar (DONE)
-    Part 5: A Text Editor
-        Inserting Characters (DONE)
-        Saving (DONE)
-        Dirty Flag (DONE)
-        Quit Confirmation (DONE)
-        Simple Backspacing (DONE)
-        Backspacing at Start of Line (DONE)
-        Enter Key (DONE)
-        Editor Prompt and Save As (DONE)
-    Part 6: Search
-        Search (DONE)
-        Incremental Search (DONE)
-            Question: Why are we passing the callback function into editor_prompt instead of just performing
-                the search/move cursor inside of editor_find?  
-            Answer: We want to use the loop inside of the editor_prompt function to search all the rows
-                since the input to the prompt changes everytime the user enters/deletes a character.  This
-                allows for realtime updates to the search as the query changes, eg incremental search.  But
-                this only searches for first occurance of the query right now. Using the callbacks also
-                allows us to leave the editor_find function to save the cursor position and reset it when
-                the search is over.  
-            Question 2: Why is the callback being called in three places inside of the editor_prompt function?
-            Answer 2:
-        Reset Cursor When Search Cancelled (DONE)
-        Search Forward and Backwards
-    Part 7: Syntax Highlighting
-        Highlight digits Red (DONE)
-        Refactor Syntax Highlighting (DONE)
-        Colorful Search Results <- continue here
-            Question: Why is the highlighting index set to 'match - row->render'???
-            Answer: match - row->render will give us the offset into render - this is the same offset for hl (which we index into using array access)
-            Question: Highlighting of search and 'enter'/'escape' aren't working as expected.  Last search remains highlighted even after pushing 'enter'
-                Check code for resetting highlights. And also try to understand how search works now
-                Problem is two-fold:
-                    Pushing 'enter' always goes to the FIRST instance of the word, and not the currently highlighted
-                    Words are not de-highlighted when the user pushes 'enter' or when the user cancels the search (it should be de-highlighted)
-                    Could go back and check code for the search function (there's a bug in my or their code)
-        Detect Filetype
-        Single line Comments
-        Keywords
-        Non-printable characters
-        Multiline comments <- start here
+
+TODO:
+    Python syntax - 'else' keyword doesn't get recognized because of ':' after it...
+    Change theme to 80s sci fi (use oblivion theme colors for now)
+    Remove tabs (render them as all spaces) - this should simplify our code by a bit (no more render array needed)
