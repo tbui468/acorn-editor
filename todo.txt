@@ -1,22 +1,3 @@
-Todo after done with tutorial
-    Should convert all tabs to spaces - this will simplify code by a bit (render_x can be removed completely, including conversion functions to/from cursor_x)
-        eg, get rid of render_x and just use cursor_x.
-        do this after entire editor tutorial is done, and make sure to save it to version control before changing it
-    Change theme to Oblivion/80s sci fi theme - add more colors and integrate them (EASY)
-    Add vim style navigation (start with adding Insert/Command modes and allow navigation with hjkl) (MODERATE)
-    Add tabs / multiple buffers (display filename or tab number on top) - this is easier than vim's :ls every time to see buffers (MODERATE)
-    Add network support to allow two people to edit file at the same time (super advanced stuff) (HARD)
-        one person (main) would open the file, and the other person connects to the open file
-        the main has the ability to write to file (read is allowed for everyone connected)
-        Could be really useful for teacher/student coding sessions
-        STEPS: Set up two basic apps that can send data to each other (one is server, and one is client)
-            then integrate that with the editor app.  Might need to figure out if ports w/ tcp/ip work the same when using WSL
-    Add syntax highighting for Python (EASY)
-    User can put cursor on line after end of file now, but vim doesn't allow that - make it like vim since I like it that way (EASY)
-
-    Could draw squares and try to make pong or snake game run in terminal?  Would need to adjust width/height of characters
-        Had this thought while laying in bed and not sleeping (just letting the mind wander)
-
 Todo anytime
     Change EditorConfig variables screenrows and screencols to screen_rows and screen_cols for consistency
     Rename EditorConfig.row to EditorConfig.rows (since it's a point/array into all the rows)
@@ -28,13 +9,26 @@ Todo anytime
 
 
 TODO:
+    Vim style controls
+        add command mode and insert mode
+        allow usage of hjkl keys for cursor movement
+        make the cursor blink as a block when in command mode (and as a line in insert mode) so that there' a visual queue of which mode we are in
+
+    Bug with syntax highlighting:
+        'if' in 'else if' is not highlighted
+        numbers after 'return' statement are not highlighted
+        numbers after 'case:' are not highlighted
 
     Remove tabs (render them as all spaces) - this should simplify our code by a bit (no more render array needed)
         would need to render all \t as spaces equal to ACORN_TAB_STOP
             but we don't ever check for \t directly - the entire line is just copied to the line
         could replace all \t with ACORN_TAB_STOP number of spaces in all lines on opening - it might be a bit slower
             but we could then remove all render + render_size from codebase
-    Vim style controls
-        add command mode and insert mode
-        allow usage of hjkl keys for cursor movement
-        make the cursor blink as a block when in command mode (and as a line in insert mode) so that there' a visual queue of which mode we are in
+
+
+    Add network support to allow two people to edit file at the same time (super advanced stuff) (HARD)
+        one person (main) would open the file, and the other person connects to the open file
+        the main has the ability to write to file (read is allowed for everyone connected)
+        Could be really useful for teacher/student coding sessions
+        STEPS: Set up two basic apps that can send data to each other (one is server, and one is client)
+            then integrate that with the editor app.  Might need to figure out if ports w/ tcp/ip work the same when using WSL

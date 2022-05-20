@@ -105,13 +105,14 @@ struct EditorConfig {
 struct EditorConfig e;
 
 /*** filetypes ***/
-char* C_HL_extensions[] =  { ".c", ".h", ".cpp", NULL };
+char* C_HL_extensions[] =  { ".c", ".h", ".c", NULL };
 char* C_HL_keywords[] = {
-    "switch", "if", "while", "for", "break", "continue", "return", "else",
-    "struct", "union", "typedef", "static", "enum", "class", "case",
+    "auto", "break", "case", "const", "continue", "default", "do", "else",
+    "enum", "extern", "for", "goto", "if", "register", "return", "sizeof", 
+    "static", "struct", "switch", "typedef", "union", "volatile", "while",
 
-    "int|", "long|", "double|", "float|", "char|", "unsigned|", "signed|",
-    "void|", NULL
+    "char|", "double|", "float|", "int|", "long|", "short|", "signed|", "unsigned|", "void|",
+    NULL
 };
 
 char* PY_HL_extensions[] =  { ".py", NULL };
