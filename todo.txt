@@ -28,6 +28,13 @@ Todo anytime
 
 
 TODO:
-    Python syntax - 'else' keyword doesn't get recognized because of ':' after it...
-    Change theme to 80s sci fi (use oblivion theme colors for now)
+
     Remove tabs (render them as all spaces) - this should simplify our code by a bit (no more render array needed)
+        would need to render all \t as spaces equal to ACORN_TAB_STOP
+            but we don't ever check for \t directly - the entire line is just copied to the line
+        could replace all \t with ACORN_TAB_STOP number of spaces in all lines on opening - it might be a bit slower
+            but we could then remove all render + render_size from codebase
+    Vim style controls
+        add command mode and insert mode
+        allow usage of hjkl keys for cursor movement
+        make the cursor blink as a block when in command mode (and as a line in insert mode) so that there' a visual queue of which mode we are in

@@ -24,12 +24,17 @@
 #define ACORN_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k) & 0x1f)
 
-#define BG_COLOR "\x1b[48;2;18;27;40m"
-#define BG_COLOR_LEN 16
-#define FG_COLOR "\x1b[38;2;134;215;247m"
-#define FG_COLOR_LEN 19
-#define NUM_COLOR "\x1b[38;2;230;162;118m"
-#define NUM_COLOR_LEN 19
+#define COLOR_BACKGROUND "\x1b[48;2;0;0;0m\0"
+#define COLOR_FOREGROUND "\x1b[38;2;134;214;247m\0"
+#define COLOR_RED "\x1b[38;2;220;87;107m\0" //red
+#define COLOR_YELLOW "\x1b[38;2;214;181;101m\0" //yellow
+#define COLOR_ORANGE "\x1b[38;2;240;141;74m\0" //orange
+#define COLOR_GREY "\x1b[38;2;65;101;105m\0" //grey
+#define COLOR_GREEN "\x1b[38;2;27;183;171m\0" //green
+#define COLOR_BLUE "\x1b[38;2;134;214;247m\0" //blue
+
+#define HIDE_CURSOR "\x1b[?25l\0"
+#define SHOW_CURSOR "\x1b[?25h\0"
 
 enum EditorKey {
     BACKSPACE = 127,
@@ -393,7 +398,18 @@ int editor_syntax_to_color(int hl) {
         case HL_STRING: return 35;
         case HL_NUMBER: return 31;
         case HL_MATCH: return 34;
-        default: return 37;
+        default: return 37; //HL_NORMAL is handled separately, so this doesn't do anything...?
+    }
+}
+
+char* editor_color_to_string(int color) {
+    switch (color) {
+        case 31: return COLOR_ORANGE;
+        case 33: return COLOR_YELLOW;
+        case 32: return COLOR_GREEN;
+        case 36: return COLOR_GREY;
+        case 35: return COLOR_RED;
+        default: return COLOR_FOREGROUND;
     }
 }
 
@@ -769,6 +785,16 @@ void editor_scroll() {
     }
 }
 
+void invert_colors(struct AppendBuffer* ab) {
+    append_buffer_append(ab, "\x1b[7m", 4);
+}
+
+void revert_colors(struct AppendBuffer* ab) {
+    append_buffer_append(ab, "\x1b[m", 3);
+    append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
+    append_buffer_append(ab, COLOR_BACKGROUND, strlen(COLOR_BACKGROUND));
+}
+
 void editor_draw_rows(struct AppendBuffer* ab) {
     int y;
     for (y = 0; y < e.screenrows; y++) {
@@ -800,18 +826,17 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             for (j = 0; j < len; j++) {
                 if (iscntrl(c[j])) {
                     char sym = (c[j] <= 26) ? '@' + c[j] : '?';
-                    append_buffer_append(ab, "\x1b[7m", 4);
+                    invert_colors(ab);
                     append_buffer_append(ab, &sym, 1);
-                    append_buffer_append(ab, "\x1b[m", 3);
+                    revert_colors(ab);
                     //reset current color
                     if (current_color != -1) {
-                        char buf[16];
-                        int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", current_color);
-                        append_buffer_append(ab, buf, clen);
+                        char* c = editor_color_to_string(current_color);
+                        append_buffer_append(ab, c, strlen(c)); 
                     }
                 } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
-                        append_buffer_append(ab, "\x1b[39m", 5);
+                        append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
                         current_color = -1;
                     }
                     append_buffer_append(ab, &c[j], 1);
@@ -819,14 +844,14 @@ void editor_draw_rows(struct AppendBuffer* ab) {
                     int color = editor_syntax_to_color(hl[j]);
                     if (color != current_color) {
                         current_color = color;
-                        char buf[16];
-                        int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
-                        append_buffer_append(ab, buf, clen);
+                      
+                        char* c = editor_color_to_string(current_color);
+                        append_buffer_append(ab, c, strlen(c)); 
                     }
                     append_buffer_append(ab, &c[j], 1);
                 }
             }
-            append_buffer_append(ab, "\x1b[39m", 5);
+            append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
         }
 
         append_buffer_append(ab, "\x1b[K", 3); //clear to end of line
@@ -835,7 +860,7 @@ void editor_draw_rows(struct AppendBuffer* ab) {
 }
 
 void editor_draw_status_bar(struct AppendBuffer* ab) {
-    append_buffer_append(ab, "\x1b[7m", 4); // switch to inverted color
+    invert_colors(ab);
 
     char status[80];
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
@@ -855,7 +880,7 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
             len++;
         }
     }
-    append_buffer_append(ab, "\x1b[m", 3); //switch back to normal color mode
+    revert_colors(ab);
     append_buffer_append(ab, "\r\n", 2);
 }
 
@@ -872,8 +897,11 @@ void editor_refresh_screen() {
 
     struct AppendBuffer ab = APPEND_BUFFER_INIT;
 
-    append_buffer_append(&ab, "\x1b[?25l", 6); //hide cursor before redrawing to avoid flicker
+    append_buffer_append(&ab, HIDE_CURSOR, strlen(HIDE_CURSOR)); //to avoid flicker when redrawing
     append_buffer_append(&ab, "\x1b[H", 3);  //move cursor back to beginning
+
+    append_buffer_append(&ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
+    append_buffer_append(&ab, COLOR_BACKGROUND, strlen(COLOR_BACKGROUND));
 
     editor_draw_rows(&ab);
     editor_draw_status_bar(&ab);
@@ -885,7 +913,7 @@ void editor_refresh_screen() {
                                               (e.render_x - e.col_offset) + 1); //adding 1 since terminal uses starting index 1
     append_buffer_append(&ab, buf, strlen(buf));
 
-    append_buffer_append(&ab, "\x1b[?25h", 6); //show cursor
+    append_buffer_append(&ab, SHOW_CURSOR, strlen(SHOW_CURSOR));
          
     write(STDOUT_FILENO, ab.buffer, ab.len); 
     append_buffer_free(&ab); 
