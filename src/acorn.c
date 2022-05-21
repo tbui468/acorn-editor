@@ -26,12 +26,12 @@
 
 #define COLOR_BACKGROUND "\x1b[48;2;0;0;0m\0"
 #define COLOR_FOREGROUND "\x1b[38;2;134;214;247m\0"
-#define COLOR_RED "\x1b[38;2;220;87;107m\0" //red
-#define COLOR_YELLOW "\x1b[38;2;214;181;101m\0" //yellow
-#define COLOR_ORANGE "\x1b[38;2;240;141;74m\0" //orange
-#define COLOR_GREY "\x1b[38;2;65;101;105m\0" //grey
-#define COLOR_GREEN "\x1b[38;2;27;183;171m\0" //green
-#define COLOR_BLUE "\x1b[38;2;134;214;247m\0" //blue
+#define COLOR_RED "\x1b[38;2;220;87;107m\0"
+#define COLOR_YELLOW "\x1b[38;2;214;181;101m\0" 
+#define COLOR_ORANGE "\x1b[38;2;240;141;74m\0"
+#define COLOR_GREY "\x1b[38;2;65;101;105m\0"
+#define COLOR_GREEN "\x1b[38;2;27;183;171m\0"
+#define COLOR_BLUE "\x1b[38;2;134;214;247m\0"
 
 #define HIDE_CURSOR "\x1b[?25l\0"
 #define SHOW_CURSOR "\x1b[?25h\0"
@@ -47,6 +47,12 @@ enum EditorKey {
     END_KEY,
     PAGE_UP,
     PAGE_DOWN
+};
+
+
+enum EditorMode {
+    MODE_COMMAND,
+    MODE_INSERT 
 };
 
 enum EditorHighlight {
@@ -100,6 +106,7 @@ struct EditorConfig {
     time_t status_msg_time;
     struct EditorSyntax* syntax;
     struct termios default_termios;
+    unsigned char mode;
 };
 
 struct EditorConfig e;
@@ -864,7 +871,7 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     invert_colors(ab);
 
     char status[80];
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+    int len = snprintf(status, sizeof(status), "%s %.20s - %d lines %s", e.mode == MODE_INSERT ? "-- INSERT --" : "" ,
             e.filename ? e.filename : "[No Name]", e.num_rows, e.dirty ? "(modified)": "");
     char rstatus[80];
     int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
@@ -976,10 +983,7 @@ void editor_move_cursor(int key) {
         case ARROW_LEFT:
             if (e.cursor_x != 0) {
                 e.cursor_x--;
-            } else if (e.cursor_y > 0) {
-                e.cursor_y--;
-                e.cursor_x = e.row[e.cursor_y].size;
-            }
+            } 
             break;
         case ARROW_DOWN:
             if (e.cursor_y < e.num_rows) e.cursor_y++;
@@ -990,9 +994,6 @@ void editor_move_cursor(int key) {
         case ARROW_RIGHT:
             if (row && e.cursor_x < row->size) {
                 e.cursor_x++;
-            } else if (row && e.cursor_x == row->size) {
-                e.cursor_y++;
-                e.cursor_x = 0;
             }
             break;
     }
@@ -1009,66 +1010,105 @@ void editor_process_keypress() {
 
     int c = editor_read_key();
 
-    switch(c) {
-        case '\r':
-            editor_insert_new_line();
-            break;
-        case CTRL_KEY('q'):
-            if (e.dirty && quit_times > 0) {
-                editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
-                quit_times--;
-                return;
-            }
-            write(STDOUT_FILENO, "\x1b[2J", 4);
-            write(STDOUT_FILENO, "\x1b[H", 3);
-            exit(0);
-            break;
-        case CTRL_KEY('s'):
-            editor_save();
-            break;
-        case HOME_KEY:
-            e.cursor_x = 0;
-            break;
-        case END_KEY:
-            if (e.cursor_y < e.num_rows)
-                e.cursor_x = e.row[e.cursor_y].size;
-            break;
-        case CTRL_KEY('f'):
-            editor_find();
-            break;
-        case BACKSPACE:
-        case CTRL_KEY('h'):
-        case DEL_KEY:
-            if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
-            editor_del_char();
-            break;
-        case PAGE_UP:
-        case PAGE_DOWN: 
-            {
-                if (c == PAGE_UP) {
-                    e.cursor_y = e.row_offset;
-                } else if (c == PAGE_DOWN) {
-                    e.cursor_y = e.row_offset + e.screenrows - 1;
-                    if (e.cursor_y > e.num_rows) e.cursor_y = e.num_rows;
+    if (e.mode == MODE_COMMAND) {
+        switch (c) {
+            case 'A':
+                e.mode = MODE_INSERT;
+                if (e.cursor_y < e.num_rows)
+                    e.cursor_x = e.row[e.cursor_y].size;
+                break;
+            case 'a':
+                e.mode = MODE_INSERT;
+                editor_move_cursor(ARROW_RIGHT);
+                break;
+            case 'i':
+                e.mode = MODE_INSERT;
+                break;
+            case 'h':
+                editor_move_cursor(ARROW_LEFT);
+                break;
+            case 'j':
+                editor_move_cursor(ARROW_DOWN);
+                break;
+            case 'k':
+                editor_move_cursor(ARROW_UP);
+                break;
+            case 'l':
+                editor_move_cursor(ARROW_RIGHT);
+                break;
+            case 'x':
+                editor_move_cursor(ARROW_RIGHT);
+                editor_del_char();
+                break;
+             default:
+                break;
+        }
+    } else { //e.mode == MODE_INSERT
+        switch(c) {
+            case '\r':
+                editor_insert_new_line();
+                break;
+            case CTRL_KEY('c'):
+                e.mode = MODE_COMMAND;
+                break;
+            case CTRL_KEY('q'):
+                if (e.dirty && quit_times > 0) {
+                    editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
+                    quit_times--;
+                    return;
                 }
+                write(STDOUT_FILENO, "\x1b[2J", 4);
+                write(STDOUT_FILENO, "\x1b[H", 3);
+                exit(0);
+                break;
+            case CTRL_KEY('s'):
+                editor_save();
+                break;
+            case HOME_KEY:
+                e.cursor_x = 0;
+                break;
+            case END_KEY:
+                if (e.cursor_y < e.num_rows)
+                    e.cursor_x = e.row[e.cursor_y].size;
+                break;
+            case CTRL_KEY('f'):
+                editor_find();
+                break;
+            case BACKSPACE:
+            case CTRL_KEY('h'):
+            case DEL_KEY:
+                if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
+                editor_del_char();
+                break;
+            case PAGE_UP:
+            case PAGE_DOWN: 
+                {
+                    if (c == PAGE_UP) {
+                        e.cursor_y = e.row_offset;
+                    } else if (c == PAGE_DOWN) {
+                        e.cursor_y = e.row_offset + e.screenrows - 1;
+                        if (e.cursor_y > e.num_rows) e.cursor_y = e.num_rows;
+                    }
 
-                int times = e.screenrows;
-                while (times--)
-                    editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-            }
-            break;
-        case ARROW_LEFT:
-        case ARROW_DOWN:
-        case ARROW_UP:
-        case ARROW_RIGHT:
-            editor_move_cursor(c);
-            break;
-        case CTRL_KEY('l'):
-        case '\x1b':
-            break;
-        default:
-            editor_insert_char(c);
-            break;
+                    int times = e.screenrows;
+                    while (times--)
+                        editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+                }
+                break;
+            case ARROW_LEFT:
+            case ARROW_DOWN:
+            case ARROW_UP:
+            case ARROW_RIGHT:
+                editor_move_cursor(c);
+                break;
+            case CTRL_KEY('l'):
+            case '\x1b':
+                e.mode = MODE_COMMAND;
+                break;
+            default:
+                editor_insert_char(c);
+                break;
+        }
     }
 
     quit_times = ACORN_QUIT_TIMES;
@@ -1088,6 +1128,7 @@ void init_editor() {
     e.status_msg[0] = '\0';
     e.status_msg_time = 0;
     e.syntax = NULL;
+    e.mode = MODE_COMMAND;
 
     if (get_window_size(&e.screenrows, &e.screencols) == -1) {
         die("get_window_size");
