@@ -10,7 +10,8 @@ Todo anytime
 
 TODO:
     When user types after pressing escape button, terminal should respond immediately (have to wait right now)
-        this will make the editor sooo much better to use!
+        this will make the editor sooo much better to use!  Do this before expanding on other vim features
+ 
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)
         :b[number] to switch buffers
