@@ -1040,7 +1040,44 @@ void editor_process_keypress() {
                 editor_move_cursor(ARROW_RIGHT);
                 editor_del_char();
                 break;
-             default:
+            case ':': {
+                char* command = editor_prompt(":%s", NULL);
+                if (command == NULL) break;
+                int clen = strlen(command);
+                if (clen == 1) {
+                    switch (command[0]) {
+                        case 'w':
+                            editor_save();
+                            break;
+                        case 'q':
+                            if (e.dirty) {
+                                editor_set_status_message("No write since last change. (Add ! to override).");
+                                return;
+                            }
+                            write(STDOUT_FILENO, "\x1b[2J", 4);
+                            write(STDOUT_FILENO, "\x1b[H", 3);
+                            exit(0);
+                            break;
+                        default:
+                            break;
+                    }
+                } else if (clen == 2) {
+                    if (command[0] == 'q' && command[1] == '!') {
+                        write(STDOUT_FILENO, "\x1b[2J", 4);
+                        write(STDOUT_FILENO, "\x1b[H", 3);
+                        exit(0);
+                        break;
+                    }
+                }
+                //TODO: quit, save, open buffer, swap buffer
+                break;
+            }
+            case '/': {
+                char* prompt = editor_prompt("/%s", NULL);
+                //TODO: incremental search with 'n' and 'N' to go forward/backward
+                break;
+            }
+            default:
                 break;
         }
     } else { //e.mode == MODE_INSERT

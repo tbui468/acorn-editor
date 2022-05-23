@@ -9,13 +9,23 @@ Todo anytime
 
 
 TODO:
+    When user types after pressing escape button, terminal should respond immediately (have to wait right now)
+        this will make the editor sooo much better to use!
+    Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
+        :e [filename] to open buffer in new tab (how does deleting tabs work????)
+        :b[number] to switch buffers
+
+    'gg' to go to top of screen
+    'G' to go to bottom of screen
+
     Add Acorn to path so that we can open it anywhere to edit text files
     Add ability to modify command mode commands with numbers (eg, jump more than a single row/col, delete more, etc)
     Add 'v' to start visual mode for highlighting
-    Add using ':' in command mode to open command in message bar
+    Add 'V' to highlight entire row (but alos keep cursor on same x position)
     Make buffers open a new 'tab' in the top (:e [filename])
     Vim doesn't really using the status bar/message bar setup - just one bar that shows message when necessary
     add search in vim  /word_to_search_for
+        use 'n' and 'N' to jump to next/previous match
 
     Vim style controls
         make the cursor blink as a block when in command mode (and as a line in insert mode) so that there' a visual queue of which mode we are in
