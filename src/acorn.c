@@ -528,9 +528,6 @@ void editor_row_del_char(struct EditorRow* row, int at) {
 
 /*** editor operations ***/
 void editor_insert_char(int c) {
-    if (e.cursor_y == e.num_rows) {
-        editor_insert_row(e.num_rows, "", 0);
-    }
     editor_row_insert_char(&e.row[e.cursor_y], e.cursor_x, c);
     e.cursor_x++;
 }
@@ -945,7 +942,7 @@ void editor_move_cursor(int key) {
             } 
             break;
         case ARROW_DOWN:
-            if (e.cursor_y < e.num_rows) e.cursor_y++;
+            if (e.cursor_y < e.num_rows - 1) e.cursor_y++;
             break;
         case ARROW_UP:
             if (e.cursor_y != 0) e.cursor_y--;
@@ -975,6 +972,13 @@ void editor_process_keypress() {
                 e.mode = MODE_INSERT;
                 if (e.cursor_y < e.num_rows)
                     e.cursor_x = e.row[e.cursor_y].size;
+                break;
+            case 'G':
+                {
+                    int times = e.num_rows;
+                    while (times--)
+                        editor_move_cursor(ARROW_DOWN);
+                }
                 break;
             case 'a':
                 e.mode = MODE_INSERT;

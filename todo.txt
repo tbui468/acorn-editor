@@ -9,15 +9,17 @@ Todo anytime
 
 
 TODO:
-    When user types after pressing escape button, terminal should respond immediately (have to wait right now)
-        this will make the editor sooo much better to use!  Do this before expanding on other vim features
- 
+    //TODO: we want to disallow cursor on row below end of file
+
+    'gg' to go to top of screen
+        need a buffer to store previous keypresses (could be numbers too)
+    'dd' to delete row
+    remove final line at bottom of screen
+
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)
         :b[number] to switch buffers
 
-    'gg' to go to top of screen
-    'G' to go to bottom of screen
 
     Add Acorn to path so that we can open it anywhere to edit text files
     Add ability to modify command mode commands with numbers (eg, jump more than a single row/col, delete more, etc)
