@@ -9,17 +9,24 @@ Todo anytime
 
 
 TODO:
-    //TODO: we want to disallow cursor on row below end of file
+    'V' to highlight row and enter highlight mode
+        in highlight mode, 'd' is used to delete
 
-    'gg' to go to top of screen
-        need a buffer to store previous keypresses (could be numbers too)
-    'dd' to delete row
-    remove final line at bottom of screen
+    'v' to enter highlight mode
+
+    in highlight mode:
+        'y' to copy
+
+    'p' in command mode to paste what was yanked
 
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)
         :b[number] to switch buffers
 
+    'Add '0' in command mode to go to beginning of line
+
+    Clean up code in insert mode (PAGE_UP, END, etc since we aren't using it)
+        be sure to incorporate PAGE_UP code into vim (what keys does vim use for this?)
 
     Add Acorn to path so that we can open it anywhere to edit text files
     Add ability to modify command mode commands with numbers (eg, jump more than a single row/col, delete more, etc)

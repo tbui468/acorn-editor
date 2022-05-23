@@ -963,6 +963,8 @@ void editor_move_cursor(int key) {
 
 void editor_process_keypress() {
     static int quit_times = ACORN_QUIT_TIMES;
+    static int key_history[256] = {0};
+    static int history_ptr = 0;
 
     int c = editor_read_key();
 
@@ -983,6 +985,23 @@ void editor_process_keypress() {
             case 'a':
                 e.mode = MODE_INSERT;
                 editor_move_cursor(ARROW_RIGHT);
+                break;
+            case 'd':
+                {
+                    int last_char = key_history[(history_ptr -1 + 256) % 256];
+                    if (last_char == 'd') {
+                        editor_del_row(e.cursor_y);
+                    }
+                }
+                break;
+            case 'g':
+                {
+                    int last_char = key_history[(history_ptr -1 + 256) % 256];
+                    if (last_char == 'g') {
+                        e.cursor_x = 0;
+                        e.cursor_y = 0;
+                    }
+                }
                 break;
             case 'i':
                 e.mode = MODE_INSERT;
@@ -1043,6 +1062,10 @@ void editor_process_keypress() {
             default:
                 break;
         }
+
+        key_history[history_ptr] = c;
+        history_ptr++;
+        history_ptr %= 256;
     } else { //e.mode == MODE_INSERT
         switch(c) {
             case '\r':
