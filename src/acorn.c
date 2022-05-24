@@ -32,7 +32,8 @@
 #define COLOR_ORANGE "\x1b[38;2;240;141;74m\0"
 #define COLOR_GREY "\x1b[38;2;65;101;105m\0"
 #define COLOR_GREEN "\x1b[38;2;27;183;171m\0"
-#define COLOR_BLUE "\x1b[38;2;134;214;247m\0"
+#define COLOR_BLUE "\x1b[38;2;34;104;147m\0"
+#define COLOR_BLACK "\x1b[38;2;30;30;30m\0"
 
 #define HIDE_CURSOR "\x1b[?25l\0"
 #define SHOW_CURSOR "\x1b[?25h\0"
@@ -108,6 +109,8 @@ struct EditorConfig {
     struct EditorSyntax* syntax;
     struct termios default_termios;
     unsigned char mode;
+    int tab_count;
+    int active_tab;
 };
 
 struct EditorConfig e;
@@ -760,6 +763,33 @@ void revert_colors(struct AppendBuffer* ab) {
     append_buffer_append(ab, COLOR_BACKGROUND, strlen(COLOR_BACKGROUND));
 }
 
+void editor_draw_tabs(struct AppendBuffer* ab) {
+    //TODO: temp tab data - should put this in EditorConfig
+    //Need three colors for tabs: no tab (different from background), inactive tab (dark blue), and active tab (blue color)
+    //change COLOR_BLUE to a darker blue (foreground can be the regular blue)
+    //No tabs can be the same color as the comments (grey color)
+    //Active tabs will just be the regular foreground blue color
+    int tab_width = e.screencols / e.tab_count;
+
+    invert_colors(ab);
+    append_buffer_append(ab, COLOR_BLUE, strlen(COLOR_BLUE));
+
+    int len = 0;
+    while (len < e.screencols) {
+        if (len >= tab_width * e.active_tab && len <= tab_width * (e.active_tab + 1)) {
+            append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
+        } else if (len % tab_width == 0) {
+            append_buffer_append(ab, COLOR_BLACK, strlen(COLOR_BLACK)); 
+        } else {
+            append_buffer_append(ab, COLOR_BLUE, strlen(COLOR_BLUE));
+        }
+        append_buffer_append(ab, " ", 1);
+        len++;
+    }
+    revert_colors(ab);
+    append_buffer_append(ab, "\r\n", 2);
+}
+
 void editor_draw_rows(struct AppendBuffer* ab) {
     int y;
     for (y = 0; y < e.screenrows; y++) {
@@ -862,12 +892,13 @@ void editor_refresh_screen() {
     append_buffer_append(&ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
     append_buffer_append(&ab, COLOR_BACKGROUND, strlen(COLOR_BACKGROUND));
 
+    editor_draw_tabs(&ab);
     editor_draw_rows(&ab);
     editor_draw_status_bar(&ab);
 
     //draw cursor
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (e.cursor_y - e.row_offset) + 1, 
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (e.cursor_y - e.row_offset) + 2,  //terminal uses index 1.  Adding 1 for tabs bar
                                               (e.render_x - e.col_offset) + 1); //adding 1 since terminal uses starting index 1
     append_buffer_append(&ab, buf, strlen(buf));
 
@@ -977,9 +1008,16 @@ void editor_process_keypress() {
                         editor_move_cursor(ARROW_DOWN);
                 }
                 break;
+            case 'H':
+                if (e.active_tab > 0) e.active_tab--;
+                break;
+            case 'L':
+                if (e.active_tab < e.tab_count - 1) e.active_tab++;
+                break;
             case 'a':
                 e.mode = MODE_INSERT;
-                editor_move_cursor(ARROW_RIGHT);
+                if (e.cursor_y < e.num_rows)
+                    e.cursor_x = e.row[e.cursor_y].size;
                 break;
             case 'd':
                 {
@@ -1051,6 +1089,27 @@ void editor_process_keypress() {
                         write(STDOUT_FILENO, "\x1b[H", 3);
                         exit(0);
                         break;
+                    } else if (command[0] == 'b') {
+                        switch (command[1]) {
+                            case '1':
+                                e.active_tab = 0;
+                                break; 
+                            case '2':
+                                e.active_tab = 1;
+                                break; 
+                            case '3':
+                                e.active_tab = 2;
+                                break; 
+                            case '4':
+                                e.active_tab = 3;
+                                break; 
+                            case '5':
+                                e.active_tab = 4;
+                                break; 
+                            case '6':
+                                e.active_tab = 5;
+                                break; 
+                        }
                     }
                 }
                 //TODO: quit, save, open buffer, swap buffer
@@ -1133,7 +1192,7 @@ void editor_process_keypress() {
                 break;
             case CTRL_KEY('l'):
             case '\x1b':
-                e.mode = MODE_COMMAND;
+                e.mode = MODE_COMMAND; 
                 break;
             default:
                 editor_insert_char(c);
@@ -1159,12 +1218,14 @@ void init_editor() {
     e.status_msg_time = 0;
     e.syntax = NULL;
     e.mode = MODE_COMMAND;
+    e.tab_count = 8; //TODO: temp count.  Should be zero, and then increment when new buffers are opened
+    e.active_tab = 0;
 
     if (get_window_size(&e.screenrows, &e.screencols) == -1) {
         die("get_window_size");
     }
 
-    e.screenrows -= 1; //for status bar
+    e.screenrows -= 2; //for status bar and tabs
 }
 
 int main(int argc, char* argv[]) {

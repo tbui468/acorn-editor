@@ -9,14 +9,21 @@ Todo anytime
 
 
 TODO:
-
     'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
-    
-    Status Bar and Message Bar merger
-        Write message bar contents into status bar left side
-        Don't need filetype - replace it with the filename (remove filename from left side of status bar)
-        combine messages into left side of status bar
-        move status bar to bottom of screen (where message bar used to be)
+    if cursor is at end of line (from using 'a' or 'A'), going to command mode should move cursor back
+        need to think of a better way to implement this - the current implementation allows moving cursor to one space beyond
+        the last character and requires it for many things to work ...
+
+        Should just switch ALL code to only move to the last character in a row by default in command mode
+        insert mode allows the cursor to be one space after the last character if you press 'a' or 'A'
+        when in insert mode and on character after last, if you switch to command mode, the cursor will move back to last character
+
+    Add tabs on top of screen so that we can add buffers later
+        put tab_count into EditorConfig
+        make bound checks when changing tabs use tab_count
+        :q closes current tab (and editor if last tab)
+        :Q closes editor
+
 
     Number History
         Keep a separate buffer for numbers?  (Along with one for commands)
@@ -55,6 +62,8 @@ TODO:
 
     Clipboard 
         'p' in command mode to paste what was yanked with y in highlight mode
+
+    Search Mode
 
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)
