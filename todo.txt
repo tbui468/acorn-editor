@@ -10,26 +10,51 @@ Todo anytime
 
 TODO:
 
-    'u' to undo (how to keep history...)
-        certain actions are single history actions, others are not
-            entering a string of chars all counts as one action until switching back to command mode or deleting something...?
-            deleting a line using 'dd' counts as a single history action    
+    'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
+    
+    Status Bar and Message Bar merger
+        Write message bar contents into status bar left side
+        Don't need filetype - replace it with the filename (remove filename from left side of status bar)
+        combine messages into left side of status bar
+        move status bar to bottom of screen (where message bar used to be)
 
-    'V' to highlight row and enter highlight mode
-        in highlight mode, 'd' is used to delete
+    Number History
+        Keep a separate buffer for numbers?  (Along with one for commands)
+        If user enters a number, fill in buffer.  If number is consumed with command, then delete it...
+        if user enters '1'-'9', and currently NOT in a number, set number_ptr* to that position (otherwise NULL number_ptr)
+        if number_ptr* is not NULL, and current value is not '0'-'9', use strtol() to extract number (could do it when necessary)
 
-    'v' to enter highlight mode
-        need to have variable to hold position from which highlight mode was entered
-        then highlight from this position to the current cursor position
-        how to exit highlight mode?
+            if x, check if last_pos is NULL....
+            will need to NULL start and end ptrs if command uses them, or if non-command key combinations are pressed afterwards...
 
-    ctrl + c to enter multirow selection...? (not usable on windows terminal/linux)
+        Use key history to allow jumping rows/cols with number + hjkl
+        mulidelete with number + x
+        numbers can also be used for 'dd' and probably other multi-key strikes too
 
-    Add highlight mode (along with insert and command mode)
-    in highlight mode:
-        'y' to copy
+    History Stack
 
-    'p' in command mode to paste what was yanked
+        'u' to undo (how to keep history...)
+            certain actions are single history actions, others are not
+                entering a string of chars all counts as one action until switching back to command mode or deleting something...?
+                deleting a line using 'dd' counts as a single history action    
+
+    Highlight Mode
+
+        'V' to highlight row and enter highlight mode
+            in highlight mode, 'd' is used to delete
+
+        'v' to enter highlight mode
+            need to have variable to hold position from which highlight mode was entered
+            then highlight from this position to the current cursor position
+            how to exit highlight mode?
+
+        ctrl + c to enter multirow selection...? (not usable on windows terminal/linux)
+
+        in highlight mode:
+            'y' to copy
+
+    Clipboard 
+        'p' in command mode to paste what was yanked with y in highlight mode
 
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)

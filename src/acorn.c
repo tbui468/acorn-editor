@@ -828,11 +828,14 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     invert_colors(ab);
 
     char status[80];
-    int len = snprintf(status, sizeof(status), "%s %.20s - %d lines %s", e.mode == MODE_INSERT ? "-- INSERT --" : "" ,
-            e.filename ? e.filename : "[No Name]", e.num_rows, e.dirty ? "(modified)": "");
+    int msglen = strlen(e.status_msg);
+    if (msglen > e.screencols) msglen = e.screencols;
+    int show_msg = msglen && time(NULL) - e.status_msg_time < 5 ? 1 : 0;
+    int len = snprintf(status, sizeof(status), "%s", show_msg ? e.status_msg : e.mode == MODE_INSERT ? "-- INSERT --" : "");
+
     char rstatus[80];
-    int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
-            e.syntax ? e.syntax->file_type : "no ft", e.cursor_y + 1, e.num_rows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%s %s | %d/%d", e.dirty ? "(modified)": "",
+            e.filename ? e.filename : "[No Name]", e.cursor_y + 1, e.num_rows);
 
     if (len > e.screencols) len = e.screencols;
     append_buffer_append(ab, status, len);
@@ -846,15 +849,6 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
         }
     }
     revert_colors(ab);
-    append_buffer_append(ab, "\r\n", 2);
-}
-
-void editor_draw_message_bar(struct AppendBuffer* ab) {
-    append_buffer_append(ab, "\x1b[K", 3); //seems like using <esc>[K then resets cursor back to beginning of line
-    int msglen = strlen(e.status_msg);
-    if (msglen > e.screencols) msglen = e.screencols;
-    if (msglen && time(NULL) - e.status_msg_time < 5)
-        append_buffer_append(ab, e.status_msg, msglen);
 }
 
 void editor_refresh_screen() {
@@ -870,7 +864,6 @@ void editor_refresh_screen() {
 
     editor_draw_rows(&ab);
     editor_draw_status_bar(&ab);
-    editor_draw_message_bar(&ab);
 
     //draw cursor
     char buf[32];
@@ -999,7 +992,7 @@ void editor_process_keypress() {
                 break;
             case 'g':
                 {
-                    int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
+                    int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'g') {
                         e.cursor_x = 0;
                         e.cursor_y = 0;
@@ -1171,7 +1164,7 @@ void init_editor() {
         die("get_window_size");
     }
 
-    e.screenrows -= 2;
+    e.screenrows -= 1; //for status bar
 }
 
 int main(int argc, char* argv[]) {
@@ -1181,7 +1174,7 @@ int main(int argc, char* argv[]) {
         editor_open(argv[1]);
     }
 
-    editor_set_status_message("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+    editor_set_status_message("Acorn Editor");
 
     while (1) {
         editor_refresh_screen();
