@@ -23,8 +23,9 @@
 #define ACORN_TAB_STOP 4
 #define ACORN_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define MAX_KEY_HISTORY 256
 
-#define COLOR_BACKGROUND "\x1b[48;2;0;0;0m\0"
+#define COLOR_BACKGROUND "\x1b[48;2;30;30;30m\0"
 #define COLOR_FOREGROUND "\x1b[38;2;134;214;247m\0"
 #define COLOR_RED "\x1b[38;2;220;87;107m\0"
 #define COLOR_YELLOW "\x1b[38;2;214;181;101m\0" 
@@ -963,12 +964,13 @@ void editor_move_cursor(int key) {
 
 void editor_process_keypress() {
     static int quit_times = ACORN_QUIT_TIMES;
-    static int key_history[256] = {0};
+    static int key_history[MAX_KEY_HISTORY] = {'&'}; //'&' is unused in command mode
     static int history_ptr = 0;
 
     int c = editor_read_key();
 
     if (e.mode == MODE_COMMAND) {
+        int clear_flag = 0;
         switch (c) {
             case 'A':
                 e.mode = MODE_INSERT;
@@ -988,15 +990,16 @@ void editor_process_keypress() {
                 break;
             case 'd':
                 {
-                    int last_char = key_history[(history_ptr -1 + 256) % 256];
+                    int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'd') {
                         editor_del_row(e.cursor_y);
+                        clear_flag = 1;
                     }
                 }
                 break;
             case 'g':
                 {
-                    int last_char = key_history[(history_ptr -1 + 256) % 256];
+                    int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'g') {
                         e.cursor_x = 0;
                         e.cursor_y = 0;
@@ -1021,6 +1024,12 @@ void editor_process_keypress() {
             case 'x':
                 editor_move_cursor(ARROW_RIGHT);
                 editor_del_char();
+                break;
+            case '0':
+                e.cursor_x = 0;
+                break;
+            case '$':
+                e.cursor_x = e.row[e.cursor_y].size - 1;
                 break;
             case ':': {
                 char* command = editor_prompt(":%s", NULL);
@@ -1063,9 +1072,14 @@ void editor_process_keypress() {
                 break;
         }
 
-        key_history[history_ptr] = c;
+        if (clear_flag) {
+            key_history[history_ptr] = '&';
+        } else {
+            key_history[history_ptr] = c;
+        }
         history_ptr++;
-        history_ptr %= 256;
+        history_ptr %= MAX_KEY_HISTORY;
+
     } else { //e.mode == MODE_INSERT
         switch(c) {
             case '\r':

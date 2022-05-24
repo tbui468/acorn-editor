@@ -9,11 +9,23 @@ Todo anytime
 
 
 TODO:
+
+    'u' to undo (how to keep history...)
+        certain actions are single history actions, others are not
+            entering a string of chars all counts as one action until switching back to command mode or deleting something...?
+            deleting a line using 'dd' counts as a single history action    
+
     'V' to highlight row and enter highlight mode
         in highlight mode, 'd' is used to delete
 
     'v' to enter highlight mode
+        need to have variable to hold position from which highlight mode was entered
+        then highlight from this position to the current cursor position
+        how to exit highlight mode?
 
+    ctrl + c to enter multirow selection...? (not usable on windows terminal/linux)
+
+    Add highlight mode (along with insert and command mode)
     in highlight mode:
         'y' to copy
 
@@ -21,17 +33,20 @@ TODO:
 
     Add using ':' in command mode to open command in message bar (use editor_prompt(...)) to get user input
         :e [filename] to open buffer in new tab (how does deleting tabs work????)
+            should display tabs/highlight current tab on top of screen
+            need to reserve top row(s) for tabs
+            should also display names (or at least parts of them) in tabs
+            new tabs open to the right of the currently selected tab
+            :q will close the current tab (need to repeat :q to close acorn)
         :b[number] to switch buffers
-
-    'Add '0' in command mode to go to beginning of line
 
     Clean up code in insert mode (PAGE_UP, END, etc since we aren't using it)
         be sure to incorporate PAGE_UP code into vim (what keys does vim use for this?)
 
+    Remove ctrl-q three times to quit dirty file - we are using 'q' and 'q!' now.
+
     Add Acorn to path so that we can open it anywhere to edit text files
     Add ability to modify command mode commands with numbers (eg, jump more than a single row/col, delete more, etc)
-    Add 'v' to start visual mode for highlighting
-    Add 'V' to highlight entire row (but alos keep cursor on same x position)
     Make buffers open a new 'tab' in the top (:e [filename])
     Vim doesn't really using the status bar/message bar setup - just one bar that shows message when necessary
     add search in vim  /word_to_search_for
