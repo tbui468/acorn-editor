@@ -7,8 +7,22 @@ Todo anytime
         otherwise there's a bug where the entire line is moved down and NOT just the string to the right of the cursor
     In editor_find_callback, the i in the for loop isn't being used... couldn't we just replace it with a loop using 'current'?
 
+    Create a writeup on my website of how this project was created
+        Mention the tutorial and that a lot of the info was gathered from there
+        What did I take out of the project?
+        What did I add into the project?
+
 
 TODO:
+    Bug with command line arguments showing up behind tabs (if there are only one or two tabs we can see last commands entered)
+    Add tabs on top of screen so that we can add buffers later
+        Tabs should all have a max width of roughly 1 / 6 of screen width
+            if more tabs are added than six, they can be shrunken down (should make max tab limit around 16)
+        put tab_count into EditorConfig
+        make bound checks when changing tabs use tab_count
+        :q closes current tab (and editor if last tab)
+        :Q closes editor
+
     'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
     if cursor is at end of line (from using 'a' or 'A'), going to command mode should move cursor back
         need to think of a better way to implement this - the current implementation allows moving cursor to one space beyond
@@ -17,13 +31,6 @@ TODO:
         Should just switch ALL code to only move to the last character in a row by default in command mode
         insert mode allows the cursor to be one space after the last character if you press 'a' or 'A'
         when in insert mode and on character after last, if you switch to command mode, the cursor will move back to last character
-
-    Add tabs on top of screen so that we can add buffers later
-        put tab_count into EditorConfig
-        make bound checks when changing tabs use tab_count
-        :q closes current tab (and editor if last tab)
-        :Q closes editor
-
 
     Number History
         Keep a separate buffer for numbers?  (Along with one for commands)

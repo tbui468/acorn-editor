@@ -764,26 +764,29 @@ void revert_colors(struct AppendBuffer* ab) {
 }
 
 void editor_draw_tabs(struct AppendBuffer* ab) {
-    //TODO: temp tab data - should put this in EditorConfig
-    //Need three colors for tabs: no tab (different from background), inactive tab (dark blue), and active tab (blue color)
-    //change COLOR_BLUE to a darker blue (foreground can be the regular blue)
-    //No tabs can be the same color as the comments (grey color)
-    //Active tabs will just be the regular foreground blue color
-    int tab_width = e.screencols / e.tab_count;
+    append_buffer_append(ab, "\x1b[K", 3); //clear to end of line
+    int tab_width = e.tab_count <= 6 ? e.screencols / 6 : e.screencols / e.tab_count;
 
     invert_colors(ab);
-    append_buffer_append(ab, COLOR_BLUE, strlen(COLOR_BLUE));
+
+    int current_count = 0;
+
 
     int len = 0;
     while (len < e.screencols) {
-        if (len >= tab_width * e.active_tab && len <= tab_width * (e.active_tab + 1)) {
+        if (len >= tab_width * e.active_tab && len < tab_width * (e.active_tab + 1)) {
             append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
-        } else if (len % tab_width == 0) {
-            append_buffer_append(ab, COLOR_BLACK, strlen(COLOR_BLACK)); 
         } else {
             append_buffer_append(ab, COLOR_BLUE, strlen(COLOR_BLUE));
         }
-        append_buffer_append(ab, " ", 1);
+
+        if (len % tab_width == 0) {
+            current_count++;
+            if (current_count > e.tab_count) break;
+            append_buffer_append(ab, "|", 1);
+        } else {
+            append_buffer_append(ab, " ", 1);
+        }
         len++;
     }
     revert_colors(ab);
@@ -1218,7 +1221,7 @@ void init_editor() {
     e.status_msg_time = 0;
     e.syntax = NULL;
     e.mode = MODE_COMMAND;
-    e.tab_count = 8; //TODO: temp count.  Should be zero, and then increment when new buffers are opened
+    e.tab_count = 1;
     e.active_tab = 0;
 
     if (get_window_size(&e.screenrows, &e.screencols) == -1) {
