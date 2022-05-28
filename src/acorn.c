@@ -619,20 +619,23 @@ void editor_open_buffer(char* filename) {
     e.active_buffer->filename = strdup(filename);
     editor_select_syntax_highlight(); //TODO: make a new version that takes buffer index into account
 
-    FILE* fp = fopen(filename, "r");
-    if (!fp) die("fopen");
+    if (access(filename, F_OK) == 0) {
+        FILE* fp = fopen(filename, "r");
+        if (!fp) die("fopen");
 
-    char* line = NULL;
-    size_t line_capacity = 0;
-    ssize_t linelen;
-    while ((linelen = getline(&line, &line_capacity, fp)) != -1) {
-        while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] =='\r'))
-            linelen--;
-        editor_insert_row(e.active_buffer->num_rows, line, linelen); //TODO: make a version that uses buffer
-    }
-    free(line);
-    fclose(fp);
-    e.active_buffer->dirty = 0;
+        char* line = NULL;
+        size_t line_capacity = 0;
+        ssize_t linelen;
+        while ((linelen = getline(&line, &line_capacity, fp)) != -1) {
+            while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] =='\r'))
+                linelen--;
+            editor_insert_row(e.active_buffer->num_rows, line, linelen); //TODO: make a version that uses buffer
+        }
+        free(line);
+        fclose(fp);
+    } else {
+        editor_insert_row(0, "", 0);
+    } 
 
     e.buffer_count++;
 
@@ -1123,6 +1126,20 @@ void editor_process_keypress() {
                         write(STDOUT_FILENO, "\x1b[H", 3);
                         exit(0);
                         break;
+                    }
+                } else if (clen >= 3) {
+                    switch (command[0]) {
+                        case 'e':
+                            {
+                                char filename[128];
+                                int str_len = clen - 2 < 128 ? clen - 2 : 127;
+                                memcpy(&filename[0], &command[2], str_len);
+                                filename[str_len] = '\0';
+                                editor_open_buffer(filename);
+                            }
+                            break;
+                        default:
+                            break;
                     }
                 }
                 //TODO: quit, save, open buffer, swap buffer
