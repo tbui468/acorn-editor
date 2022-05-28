@@ -112,7 +112,8 @@ struct EditorConfig {
     time_t status_msg_time;
     struct termios default_termios;
     unsigned char mode;
-    int active_buffer;
+    //int active_buffer;
+    struct EditorBuffer* active_buffer;
     struct EditorBuffer* buffers;
     int buffer_count;
 };
@@ -247,19 +248,17 @@ int is_separator(int c) {
 }
 
 void editor_update_syntax(struct EditorRow* row) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     row->hl = realloc(row->hl, row->render_size);
     memset(row->hl, HL_NORMAL, row->render_size);
 
-    if (buffer->syntax == NULL) return;
+    if (e.active_buffer->syntax == NULL) return;
 
-    char** keywords = buffer->syntax->keywords;
+    char** keywords = e.active_buffer->syntax->keywords;
 
     //check if comment characters were set in EditorSyntax
-    char* scs = buffer->syntax->singleline_comment_start;
-    char* mcs = buffer->syntax->multiline_comment_start;
-    char* mce = buffer->syntax->multiline_comment_end;
+    char* scs = e.active_buffer->syntax->singleline_comment_start;
+    char* mcs = e.active_buffer->syntax->multiline_comment_start;
+    char* mce = e.active_buffer->syntax->multiline_comment_end;
 
     int scs_len = scs ? strlen(scs) : 0;
     int mcs_len = mcs ? strlen(mcs) : 0;
@@ -267,7 +266,7 @@ void editor_update_syntax(struct EditorRow* row) {
 
     int prev_sep = 1;
     int in_string = 0;
-    int in_comment = (row->idx > 0 && buffer->row[row->idx - 1].hl_open_comment);
+    int in_comment = (row->idx > 0 && e.active_buffer->row[row->idx - 1].hl_open_comment);
 
     int i = 0;
     while (i < row->render_size) {
@@ -302,7 +301,7 @@ void editor_update_syntax(struct EditorRow* row) {
             }
         }
 
-        if (buffer->syntax->flags & HL_HIGHLIGHT_STRINGS) {
+        if (e.active_buffer->syntax->flags & HL_HIGHLIGHT_STRINGS) {
             if (in_string) {
                 row->hl[i] = HL_STRING;
                 if (c == '\\' && i + 1 < row->render_size) {
@@ -324,7 +323,7 @@ void editor_update_syntax(struct EditorRow* row) {
             }
         }
 
-        if (buffer->syntax->flags & HL_HIGHLIGHT_NUMBERS) {
+        if (e.active_buffer->syntax->flags & HL_HIGHLIGHT_NUMBERS) {
             if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
                    (c == '.' && prev_hl == HL_NUMBER)) {
                 row->hl[i] = HL_NUMBER;
@@ -362,8 +361,8 @@ void editor_update_syntax(struct EditorRow* row) {
 
     int changed = (row->hl_open_comment != in_comment);
     row->hl_open_comment = in_comment;
-    if (changed && row->idx + 1 < buffer->num_rows)
-        editor_update_syntax(&buffer->row[row->idx + 1]);
+    if (changed && row->idx + 1 < e.active_buffer->num_rows)
+        editor_update_syntax(&e.active_buffer->row[row->idx + 1]);
 }
 
 int editor_syntax_to_color(int hl) {
@@ -391,12 +390,10 @@ char* editor_color_to_string(int color) {
 }
 
 void editor_select_syntax_highlight() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
+    e.active_buffer->syntax = NULL;
+    if (e.active_buffer->filename == NULL) return;
 
-    buffer->syntax = NULL;
-    if (buffer->filename == NULL) return;
-
-    char* ext = strrchr(buffer->filename, '.');
+    char* ext = strrchr(e.active_buffer->filename, '.');
 
     for (unsigned int j = 0; j < HLDB_ENTRIES; j++) {
         struct EditorSyntax* s = &HLDB[j];
@@ -404,13 +401,13 @@ void editor_select_syntax_highlight() {
         while (s->file_match[i]) {
             int is_ext = (s->file_match[i][0] == '.');
             if ((is_ext && ext && !strcmp(ext, s->file_match[i])) || 
-                    (!is_ext && strstr(buffer->filename, s->file_match[i]))) {
-                buffer->syntax = s;
+                    (!is_ext && strstr(e.active_buffer->filename, s->file_match[i]))) {
+                e.active_buffer->syntax = s;
 
                 //highlight current file for when user saves as an extension
                 int filerow;
-                for (filerow = 0; filerow < buffer->num_rows; filerow++) {
-                    editor_update_syntax(&buffer->row[filerow]);
+                for (filerow = 0; filerow < e.active_buffer->num_rows; filerow++) {
+                    editor_update_syntax(&e.active_buffer->row[filerow]);
                 }
 
                 return;
@@ -474,28 +471,27 @@ void editor_update_row(struct EditorRow* row) {
 }
 
 void editor_insert_row(int at, char* s, size_t len) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-    if (at < 0 || at > buffer->num_rows) return;
+    if (at < 0 || at > e.active_buffer->num_rows) return;
 
-    buffer->row = realloc(buffer->row, sizeof(struct EditorRow) * (buffer->num_rows + 1));
-    memmove(&buffer->row[at + 1], &buffer->row[at], sizeof(struct EditorRow) * (buffer->num_rows - at));
-    for (int j = at + 1; j <= buffer->num_rows; j++) buffer->row[j].idx++;
+    e.active_buffer->row = realloc(e.active_buffer->row, sizeof(struct EditorRow) * (e.active_buffer->num_rows + 1));
+    memmove(&e.active_buffer->row[at + 1], &e.active_buffer->row[at], sizeof(struct EditorRow) * (e.active_buffer->num_rows - at));
+    for (int j = at + 1; j <= e.active_buffer->num_rows; j++) e.active_buffer->row[j].idx++;
 
-    buffer->row[at].idx = at;
+    e.active_buffer->row[at].idx = at;
 
-    buffer->row[at].size = len;
-    buffer->row[at].chars = malloc(len + 1);
-    memcpy(buffer->row[at].chars, s, len);
-    buffer->row[at].chars[len] = '\0';
+    e.active_buffer->row[at].size = len;
+    e.active_buffer->row[at].chars = malloc(len + 1);
+    memcpy(e.active_buffer->row[at].chars, s, len);
+    e.active_buffer->row[at].chars[len] = '\0';
     
-    buffer->row[at].render_size = 0;
-    buffer->row[at].render = NULL;
-    buffer->row[at].hl = NULL;
-    buffer->row[at].hl_open_comment = 0;
-    editor_update_row(&buffer->row[at]);
+    e.active_buffer->row[at].render_size = 0;
+    e.active_buffer->row[at].render = NULL;
+    e.active_buffer->row[at].hl = NULL;
+    e.active_buffer->row[at].hl_open_comment = 0;
+    editor_update_row(&e.active_buffer->row[at]);
 
-    buffer->num_rows++;
-    buffer->dirty++;
+    e.active_buffer->num_rows++;
+    e.active_buffer->dirty++;
 }
 
 void editor_free_row(struct EditorRow* row) {
@@ -505,105 +501,91 @@ void editor_free_row(struct EditorRow* row) {
 }
 
 void editor_del_row(int at) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
-    if (at < 0 || at >= buffer->num_rows) return;
-    editor_free_row(&buffer->row[at]);
-    memmove(&buffer->row[at], &buffer->row[at + 1], sizeof(struct EditorRow) * (buffer->num_rows - at - 1));
-    for (int j = at; j < buffer->num_rows - 1; j++) buffer->row[j].idx--;
-    buffer->num_rows--;
-    buffer->dirty++;
+    if (at < 0 || at >= e.active_buffer->num_rows) return;
+    editor_free_row(&e.active_buffer->row[at]);
+    memmove(&e.active_buffer->row[at], &e.active_buffer->row[at + 1], sizeof(struct EditorRow) * (e.active_buffer->num_rows - at - 1));
+    for (int j = at; j < e.active_buffer->num_rows - 1; j++) e.active_buffer->row[j].idx--;
+    e.active_buffer->num_rows--;
+    e.active_buffer->dirty++;
 }
 
 void editor_row_insert_char(struct EditorRow* row, int at, int c) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     if (at < 0 || at > row->size) at = row->size;
     row->chars = realloc(row->chars, row->size + 2); //one for inserted character and one for null terminator
     memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
     row->size++;
     row->chars[at] = c;
     editor_update_row(row);
-    buffer->dirty++;
+    e.active_buffer->dirty++;
 }
 
 void editor_row_append_string(struct EditorRow* row, char* s, size_t len) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     row->chars = realloc(row->chars, row->size + len + 1);
     memcpy(&row->chars[row->size], s, len);
     row->size += len;
     row->chars[row->size] = '\0';
     editor_update_row(row);
-    buffer->dirty++;
+    e.active_buffer->dirty++;
 }
 
 void editor_row_del_char(struct EditorRow* row, int at) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     if (at < 0 || at >= row->size) return;
     memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
     row->size--;
     editor_update_row(row);
-    buffer->dirty++;
+    e.active_buffer->dirty++;
 }
 
 /*** editor operations ***/
 void editor_insert_char(int c) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-    editor_row_insert_char(&buffer->row[buffer->cursor_y], buffer->cursor_x, c);
-    buffer->cursor_x++;
+    editor_row_insert_char(&e.active_buffer->row[e.active_buffer->cursor_y], e.active_buffer->cursor_x, c);
+    e.active_buffer->cursor_x++;
 }
 
 void editor_insert_new_line() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-    if (buffer->cursor_x == 0) {
-        editor_insert_row(buffer->cursor_y, "", 0);
+    if (e.active_buffer->cursor_x == 0) {
+        editor_insert_row(e.active_buffer->cursor_y, "", 0);
     } else {
-        struct EditorRow* row = &buffer->row[buffer->cursor_y];
-        editor_insert_row(buffer->cursor_y + 1, &row->chars[buffer->cursor_x], row->size - buffer->cursor_x);
-        row = &buffer->row[buffer->cursor_y]; //need to reassigned row in case realloc in 'editor_insert_row' moved some memory
-        row->size = buffer->cursor_x;
+        struct EditorRow* row = &e.active_buffer->row[e.active_buffer->cursor_y];
+        editor_insert_row(e.active_buffer->cursor_y + 1, &row->chars[e.active_buffer->cursor_x], row->size - e.active_buffer->cursor_x);
+        row = &e.active_buffer->row[e.active_buffer->cursor_y]; //need to reassigned row in case realloc in 'editor_insert_row' moved some memory
+        row->size = e.active_buffer->cursor_x;
         row->chars[row->size] = '\0';
         editor_update_row(row);
     }
-    buffer->cursor_y++;
-    buffer->cursor_x = 0;
+    e.active_buffer->cursor_y++;
+    e.active_buffer->cursor_x = 0;
 }
 
 void editor_del_char() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
+    if (e.active_buffer->cursor_y == e.active_buffer->num_rows) return;
+    if (e.active_buffer->cursor_x == 0 && e.active_buffer->cursor_y == 0) return;
 
-    if (buffer->cursor_y == buffer->num_rows) return;
-    if (buffer->cursor_x == 0 && buffer->cursor_y == 0) return;
-
-    struct EditorRow* row = &buffer->row[buffer->cursor_y];
-    if (buffer->cursor_x > 0) {
-        editor_row_del_char(row, buffer->cursor_x - 1);
-        buffer->cursor_x--;
+    struct EditorRow* row = &e.active_buffer->row[e.active_buffer->cursor_y];
+    if (e.active_buffer->cursor_x > 0) {
+        editor_row_del_char(row, e.active_buffer->cursor_x - 1);
+        e.active_buffer->cursor_x--;
     } else {
-        buffer->cursor_x = buffer->row[buffer->cursor_y - 1].size;
-        editor_row_append_string(&buffer->row[buffer->cursor_y - 1], row->chars, row->size);
-        editor_del_row(buffer->cursor_y);
-        buffer->cursor_y--;
+        e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y - 1].size;
+        editor_row_append_string(&e.active_buffer->row[e.active_buffer->cursor_y - 1], row->chars, row->size);
+        editor_del_row(e.active_buffer->cursor_y);
+        e.active_buffer->cursor_y--;
     }
 }
 
 /*** file i/o ***/
 char* editor_rows_to_string(int* buffer_length) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     int total_length = 0;
     int j;
-    for (j = 0; j < buffer->num_rows; j++)
-        total_length += buffer->row[j].size + 1;
+    for (j = 0; j < e.active_buffer->num_rows; j++)
+        total_length += e.active_buffer->row[j].size + 1;
     *buffer_length = total_length;
 
     char* buffer_str = malloc(total_length);
     char* p = buffer_str;
-    for (j = 0; j < buffer->num_rows; j++) {
-        memcpy(p, buffer->row[j].chars, buffer->row[j].size);
-        p += buffer->row[j].size;
+    for (j = 0; j < e.active_buffer->num_rows; j++) {
+        memcpy(p, e.active_buffer->row[j].chars, e.active_buffer->row[j].size);
+        p += e.active_buffer->row[j].size;
         *p = '\n';
         p++;
     }
@@ -632,9 +614,9 @@ void editor_open_buffer(char* filename) {
         return; //TODO: should print out message on status bar telling user they hit max buffer limit
     }
 
-    struct EditorBuffer* buffer = e.buffers + e.buffer_count;
-    editor_init_buffer(buffer);
-    buffer->filename = strdup(filename);
+    e.active_buffer = e.buffers + e.buffer_count; //TODO: adding new buffers to end for now
+    editor_init_buffer(e.active_buffer);
+    e.active_buffer->filename = strdup(filename);
     editor_select_syntax_highlight(); //TODO: make a new version that takes buffer index into account
 
     FILE* fp = fopen(filename, "r");
@@ -646,11 +628,11 @@ void editor_open_buffer(char* filename) {
     while ((linelen = getline(&line, &line_capacity, fp)) != -1) {
         while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] =='\r'))
             linelen--;
-        editor_insert_row(buffer->num_rows, line, linelen); //TODO: make a version that uses buffer
+        editor_insert_row(e.active_buffer->num_rows, line, linelen); //TODO: make a version that uses buffer
     }
     free(line);
     fclose(fp);
-    buffer->dirty = 0;
+    e.active_buffer->dirty = 0;
 
     e.buffer_count++;
 
@@ -659,11 +641,9 @@ void editor_open_buffer(char* filename) {
 
 
 void editor_save() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
-    if (buffer->filename == NULL) {
-        buffer->filename = editor_prompt("Save as: %s (ESC to cancel)", NULL);
-        if (buffer->filename == NULL) {
+    if (e.active_buffer->filename == NULL) {
+        e.active_buffer->filename = editor_prompt("Save as: %s (ESC to cancel)", NULL);
+        if (e.active_buffer->filename == NULL) {
             editor_set_status_message("Save aborted");
             return;
         }
@@ -673,13 +653,13 @@ void editor_save() {
     int len;
     char* buffer_str = editor_rows_to_string(&len);
 
-    int fd = open(buffer->filename, O_RDWR | O_CREAT, 0644); //0644 is standard permissions - owner gets read/write, otherwise only read
+    int fd = open(e.active_buffer->filename, O_RDWR | O_CREAT, 0644); //0644 is standard permissions - owner gets read/write, otherwise only read
     if (fd != -1) {
         if (ftruncate(fd, len) != -1) {
             if (write(fd, buffer_str, len) == len) {
                 close(fd);
                 free(buffer_str);
-                buffer->dirty = 0;
+                e.active_buffer->dirty = 0;
                 editor_set_status_message("%d bytes written to disk", len);
                 return;
             }
@@ -698,10 +678,8 @@ void editor_find_callback(char* query, int key) {
     static int saved_hl_line;
     static char* saved_hl = NULL;
 
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     if (saved_hl) {
-        memcpy(buffer->row[saved_hl_line].hl, saved_hl, buffer->row[saved_hl_line].render_size);
+        memcpy(e.active_buffer->row[saved_hl_line].hl, saved_hl, e.active_buffer->row[saved_hl_line].render_size);
         free(saved_hl);
         saved_hl = NULL;
     }
@@ -722,19 +700,19 @@ void editor_find_callback(char* query, int key) {
     if (last_match == -1) direction = 1;
     int current = last_match;
     int i;
-    for (i = 0; i < buffer->num_rows; i++) {
+    for (i = 0; i < e.active_buffer->num_rows; i++) {
         //loop 'current'
         current += direction;
-        if (current == -1) current = buffer->num_rows - 1;
-        else if (current == buffer->num_rows) current = 0;
+        if (current == -1) current = e.active_buffer->num_rows - 1;
+        else if (current == e.active_buffer->num_rows) current = 0;
 
-        struct EditorRow* row = &buffer->row[current];
+        struct EditorRow* row = &e.active_buffer->row[current];
         char* match = strstr(row->render, query);
         if (match) {
             last_match = current;
-            buffer->cursor_y = current;
-            buffer->cursor_x = editor_row_render_x_to_cursor_x(row, match - row->render);
-            buffer->row_offset = buffer->num_rows; //setting offset so that next screen refresh will scroll up so query is at top of screen
+            e.active_buffer->cursor_y = current;
+            e.active_buffer->cursor_x = editor_row_render_x_to_cursor_x(row, match - row->render);
+            e.active_buffer->row_offset = e.active_buffer->num_rows; //setting offset so that next screen refresh will scroll up so query is at top of screen
 
             saved_hl_line = current;
             saved_hl = malloc(row->render_size);
@@ -746,22 +724,20 @@ void editor_find_callback(char* query, int key) {
 }
 
 void editor_find() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
-    int saved_cx = buffer->cursor_x;
-    int saved_cy = buffer->cursor_y;
-    int saved_coloff = buffer->col_offset;
-    int saved_rowoff = buffer->row_offset;
+    int saved_cx = e.active_buffer->cursor_x;
+    int saved_cy = e.active_buffer->cursor_y;
+    int saved_coloff = e.active_buffer->col_offset;
+    int saved_rowoff = e.active_buffer->row_offset;
 
     char* query = editor_prompt("Search: %s (Use ESC/Arrows/Enter)", editor_find_callback);
 
     if (query) {
         free(query);
     } else {
-        buffer->cursor_x = saved_cx;
-        buffer->cursor_y = saved_cy;
-        buffer->col_offset = saved_coloff;
-        buffer->row_offset = saved_rowoff;
+        e.active_buffer->cursor_x = saved_cx;
+        e.active_buffer->cursor_y = saved_cy;
+        e.active_buffer->col_offset = saved_coloff;
+        e.active_buffer->row_offset = saved_rowoff;
     }
 }
 
@@ -789,24 +765,22 @@ void append_buffer_free(struct AppendBuffer* ab) {
 
 /*** output ***/
 void editor_scroll() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
-    buffer->render_x = 0;
-    if (buffer->cursor_y < buffer->num_rows) {
-        buffer->render_x = editor_row_cursor_x_to_render_x(&buffer->row[buffer->cursor_y], buffer->cursor_x);
+    e.active_buffer->render_x = 0;
+    if (e.active_buffer->cursor_y < e.active_buffer->num_rows) {
+        e.active_buffer->render_x = editor_row_cursor_x_to_render_x(&e.active_buffer->row[e.active_buffer->cursor_y], e.active_buffer->cursor_x);
     }
 
-    if (buffer->cursor_y < buffer->row_offset) {
-        buffer->row_offset = buffer->cursor_y;
+    if (e.active_buffer->cursor_y < e.active_buffer->row_offset) {
+        e.active_buffer->row_offset = e.active_buffer->cursor_y;
     }
-    if (buffer->cursor_y >= buffer->row_offset + e.screenrows) {
-        buffer->row_offset = buffer->cursor_y - e.screenrows + 1;
+    if (e.active_buffer->cursor_y >= e.active_buffer->row_offset + e.screenrows) {
+        e.active_buffer->row_offset = e.active_buffer->cursor_y - e.screenrows + 1;
     }
-    if (buffer->render_x < buffer->col_offset) {
-        buffer->col_offset = buffer->render_x;
+    if (e.active_buffer->render_x < e.active_buffer->col_offset) {
+        e.active_buffer->col_offset = e.active_buffer->render_x;
     }
-    if (buffer->render_x >= buffer->col_offset + e.screencols) {
-        buffer->col_offset = buffer->render_x - e.screencols + 1;
+    if (e.active_buffer->render_x >= e.active_buffer->col_offset + e.screencols) {
+        e.active_buffer->col_offset = e.active_buffer->render_x - e.screencols + 1;
     }
 }
 
@@ -831,7 +805,7 @@ void editor_draw_buffer_tabs(struct AppendBuffer* ab) {
 
     int len = 0;
     while (len < e.screencols) {
-        if (len >= tab_width * e.active_buffer && len < tab_width * (e.active_buffer + 1)) {
+        if (len >= tab_width * (e.active_buffer - e.buffers) && len < tab_width * (e.active_buffer - e.buffers + 1)) {
             append_buffer_append(ab, COLOR_FOREGROUND, strlen(COLOR_FOREGROUND));
         } else {
             append_buffer_append(ab, COLOR_BLUE, strlen(COLOR_BLUE));
@@ -851,13 +825,11 @@ void editor_draw_buffer_tabs(struct AppendBuffer* ab) {
 }
 
 void editor_draw_rows(struct AppendBuffer* ab) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     int y;
     for (y = 0; y < e.screenrows; y++) {
-        int file_row = y + buffer->row_offset;
-        if (file_row >= buffer->num_rows) { //draw empty lines
-            if (buffer->num_rows == 0 && y == e.screenrows / 3) {
+        int file_row = y + e.active_buffer->row_offset;
+        if (file_row >= e.active_buffer->num_rows) { //draw empty lines
+            if (e.active_buffer->num_rows == 0 && y == e.screenrows / 3) {
                 char welcome[80];
                 int welcome_len = snprintf(welcome, sizeof(welcome),
                         "80s Sci-Fi Editor -- version %s", ACORN_VERSION);
@@ -873,11 +845,11 @@ void editor_draw_rows(struct AppendBuffer* ab) {
                 append_buffer_append(ab, "~", 1);
             }
         } else { //draw text in buffer
-            int len = buffer->row[file_row].render_size - buffer->col_offset;
+            int len = e.active_buffer->row[file_row].render_size - e.active_buffer->col_offset;
             if (len < 0) len = 0;
             if (len > e.screencols) len = e.screencols;
-            char* c = &buffer->row[file_row].render[buffer->col_offset];
-            unsigned char* hl = &buffer->row[file_row].hl[buffer->col_offset];
+            char* c = &e.active_buffer->row[file_row].render[e.active_buffer->col_offset];
+            unsigned char* hl = &e.active_buffer->row[file_row].hl[e.active_buffer->col_offset];
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
@@ -917,7 +889,6 @@ void editor_draw_rows(struct AppendBuffer* ab) {
 }
 
 void editor_draw_status_bar(struct AppendBuffer* ab) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
     invert_colors(ab);
 
     char status[80];
@@ -927,8 +898,8 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     int len = snprintf(status, sizeof(status), "%s", show_msg ? e.status_msg : e.mode == MODE_INSERT ? "-- INSERT --" : "");
 
     char rstatus[80];
-    int rlen = snprintf(rstatus, sizeof(rstatus), "%s %s | %d/%d", buffer->dirty ? "(modified)": "",
-            buffer->filename ? buffer->filename : "[No Name]", buffer->cursor_y + 1, buffer->num_rows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%s %s | %d/%d", e.active_buffer->dirty ? "(modified)": "",
+            e.active_buffer->filename ? e.active_buffer->filename : "[No Name]", e.active_buffer->cursor_y + 1, e.active_buffer->num_rows);
 
     if (len > e.screencols) len = e.screencols;
     append_buffer_append(ab, status, len);
@@ -945,7 +916,6 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
 }
 
 void editor_refresh_screen() {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
     editor_scroll();
 
     struct AppendBuffer ab = APPEND_BUFFER_INIT;
@@ -962,8 +932,8 @@ void editor_refresh_screen() {
 
     //draw cursor
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (buffer->cursor_y - buffer->row_offset) + 2,  //terminal uses index 1.  Adding 1 for tabs bar
-                                              (buffer->render_x - buffer->col_offset) + 1); //adding 1 since terminal uses starting index 1
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (e.active_buffer->cursor_y - e.active_buffer->row_offset) + 2,  //terminal uses index 1.  Adding 1 for tabs bar
+                                              (e.active_buffer->render_x - e.active_buffer->col_offset) + 1); //adding 1 since terminal uses starting index 1
     append_buffer_append(&ab, buf, strlen(buf));
 
     append_buffer_append(&ab, SHOW_CURSOR, strlen(SHOW_CURSOR));
@@ -1022,32 +992,31 @@ char* editor_prompt(char* prompt, void (*callback)(char*, int)) {
 }
 
 void editor_move_cursor(int key) {
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-    struct EditorRow* row = (buffer->cursor_y >= buffer->num_rows) ? NULL : &buffer->row[buffer->cursor_y];
+    struct EditorRow* row = (e.active_buffer->cursor_y >= e.active_buffer->num_rows) ? NULL : &e.active_buffer->row[e.active_buffer->cursor_y];
 
     switch(key) {
         case ARROW_LEFT:
-            if (buffer->cursor_x != 0) {
-                buffer->cursor_x--;
+            if (e.active_buffer->cursor_x != 0) {
+                e.active_buffer->cursor_x--;
             } 
             break;
         case ARROW_DOWN:
-            if (buffer->cursor_y < buffer->num_rows - 1) buffer->cursor_y++;
+            if (e.active_buffer->cursor_y < e.active_buffer->num_rows - 1) e.active_buffer->cursor_y++;
             break;
         case ARROW_UP:
-            if (buffer->cursor_y != 0) buffer->cursor_y--;
+            if (e.active_buffer->cursor_y != 0) e.active_buffer->cursor_y--;
             break;
         case ARROW_RIGHT:
-            if (row && buffer->cursor_x < row->size) {
-                buffer->cursor_x++;
+            if (row && e.active_buffer->cursor_x < row->size) {
+                e.active_buffer->cursor_x++;
             }
             break;
     }
 
-    row = (buffer->cursor_y >= buffer->num_rows) ? NULL : &buffer->row[buffer->cursor_y];
+    row = (e.active_buffer->cursor_y >= e.active_buffer->num_rows) ? NULL : &e.active_buffer->row[e.active_buffer->cursor_y];
     int rowlen = row ? row->size : 0;
-    if (buffer->cursor_x > rowlen) {
-        buffer->cursor_x = rowlen;
+    if (e.active_buffer->cursor_x > rowlen) {
+        e.active_buffer->cursor_x = rowlen;
     }
 }
 
@@ -1056,8 +1025,6 @@ void editor_process_keypress() {
     static int key_history[MAX_KEY_HISTORY] = {'&'}; //'&' is unused in command mode
     static int history_ptr = 0;
 
-    struct EditorBuffer* buffer = &e.buffers[e.active_buffer];
-
     int c = editor_read_key();
 
     if (e.mode == MODE_COMMAND) {
@@ -1065,32 +1032,32 @@ void editor_process_keypress() {
         switch (c) {
             case 'A':
                 e.mode = MODE_INSERT;
-                if (buffer->cursor_y < buffer->num_rows)
-                    buffer->cursor_x = buffer->row[buffer->cursor_y].size;
+                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
+                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case 'G':
                 {
-                    int times = buffer->num_rows;
+                    int times = e.active_buffer->num_rows;
                     while (times--)
                         editor_move_cursor(ARROW_DOWN);
                 }
                 break;
             case 'H':
-                if (e.active_buffer > 0) e.active_buffer--;
+                if (e.active_buffer - e.buffers > 0) e.active_buffer--;
                 break;
             case 'L':
-                if (e.active_buffer < e.buffer_count - 1) e.active_buffer++;
+                if (e.active_buffer - e.buffers < e.buffer_count - 1) e.active_buffer++;
                 break;
             case 'a':
                 e.mode = MODE_INSERT;
-                if (buffer->cursor_y < buffer->num_rows)
-                    buffer->cursor_x = buffer->row[buffer->cursor_y].size;
+                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
+                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case 'd':
                 {
                     int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'd') {
-                        editor_del_row(buffer->cursor_y);
+                        editor_del_row(e.active_buffer->cursor_y);
                         clear_flag = 1;
                     }
                 }
@@ -1099,8 +1066,8 @@ void editor_process_keypress() {
                 {
                     int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'g') {
-                        buffer->cursor_x = 0;
-                        buffer->cursor_y = 0;
+                        e.active_buffer->cursor_x = 0;
+                        e.active_buffer->cursor_y = 0;
                     }
                 }
                 break;
@@ -1124,10 +1091,10 @@ void editor_process_keypress() {
                 editor_del_char();
                 break;
             case '0':
-                buffer->cursor_x = 0;
+                e.active_buffer->cursor_x = 0;
                 break;
             case '$':
-                buffer->cursor_x = buffer->row[buffer->cursor_y].size - 1;
+                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
                 break;
             case ':': {
                 char* command = editor_prompt(":%s", NULL);
@@ -1139,7 +1106,7 @@ void editor_process_keypress() {
                             editor_save();
                             break;
                         case 'q':
-                            if (buffer->dirty) {
+                            if (e.active_buffer->dirty) {
                                 editor_set_status_message("No write since last change. (Add ! to override).");
                                 return;
                             }
@@ -1187,7 +1154,7 @@ void editor_process_keypress() {
                 e.mode = MODE_COMMAND;
                 break;
             case CTRL_KEY('q'):
-                if (buffer->dirty && quit_times > 0) {
+                if (e.active_buffer->dirty && quit_times > 0) {
                     editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
                     quit_times--;
                     return;
@@ -1200,11 +1167,11 @@ void editor_process_keypress() {
                 editor_save();
                 break;
             case HOME_KEY:
-                buffer->cursor_x = 0;
+                e.active_buffer->cursor_x = 0;
                 break;
             case END_KEY:
-                if (buffer->cursor_y < buffer->num_rows)
-                    buffer->cursor_x = buffer->row[buffer->cursor_y].size;
+                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
+                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case CTRL_KEY('f'):
                 editor_find();
@@ -1219,10 +1186,10 @@ void editor_process_keypress() {
             case PAGE_DOWN: 
                 {
                     if (c == PAGE_UP) {
-                        buffer->cursor_y = buffer->row_offset;
+                        e.active_buffer->cursor_y = e.active_buffer->row_offset;
                     } else if (c == PAGE_DOWN) {
-                        buffer->cursor_y = buffer->row_offset + e.screenrows - 1;
-                        if (buffer->cursor_y > buffer->num_rows) buffer->cursor_y = buffer->num_rows;
+                        e.active_buffer->cursor_y = e.active_buffer->row_offset + e.screenrows - 1;
+                        if (e.active_buffer->cursor_y > e.active_buffer->num_rows) e.active_buffer->cursor_y = e.active_buffer->num_rows;
                     }
 
                     int times = e.screenrows;
@@ -1254,7 +1221,7 @@ void init_editor() {
     e.status_msg[0] = '\0';
     e.status_msg_time = 0;
     e.mode = MODE_COMMAND;
-    e.active_buffer = 0;
+    e.active_buffer = NULL;
     e.buffers = malloc(sizeof(struct EditorBuffer) * 16);
     e.buffer_count = 0;
 
