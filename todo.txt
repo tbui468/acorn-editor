@@ -14,24 +14,16 @@ Todo anytime
 
 TODO:
     :q closes current tab (and editor if last tab)
+        Finish editor_close_buffer(int)
+        need to to free all buffer memory to avoid memory leaks
     :Q closes editor
         attempting :Q will check if ALL buffers are not dirty (rather than just one)
 
+    Display file name in tab (rather than status bar)
+
     Opening a new buffer inserts it right after the active buffer
         (rather than putting it in the end of the buffers)
-
-    Finish editor_close_buffer(int)
-    
-
-    'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
-    if cursor is at end of line (from using 'a' or 'A'), going to command mode should move cursor back
-        need to think of a better way to implement this - the current implementation allows moving cursor to one space beyond
-        the last character and requires it for many things to work ...
-
-        Should just switch ALL code to only move to the last character in a row by default in command mode
-        insert mode allows the cursor to be one space after the last character if you press 'a' or 'A'
-        when in insert mode and on character after last, if you switch to command mode, the cursor will move back to last character
-
+        
     Number History
         Keep a separate buffer for numbers?  (Along with one for commands)
         If user enters a number, fill in buffer.  If number is consumed with command, then delete it...
@@ -66,6 +58,17 @@ TODO:
 
         in highlight mode:
             'y' to copy
+    
+    Other stuff
+        'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
+        if cursor is at end of line (from using 'a' or 'A'), going to command mode should move cursor back
+            need to think of a better way to implement this - the current implementation allows moving cursor to one space beyond
+            the last character and requires it for many things to work ...
+
+            Should just switch ALL code to only move to the last character in a row by default in command mode
+            insert mode allows the cursor to be one space after the last character if you press 'a' or 'A'
+            when in insert mode and on character after last, if you switch to command mode, the cursor will move back to last character
+
 
     Clipboard 
         'p' in command mode to paste what was yanked with y in highlight mode

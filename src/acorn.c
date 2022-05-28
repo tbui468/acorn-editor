@@ -614,12 +614,12 @@ void editor_open_buffer(char* filename) {
         return; //TODO: should print out message on status bar telling user they hit max buffer limit
     }
 
-    e.active_buffer = e.buffers + e.buffer_count; //TODO: adding new buffers to end for now
+    e.active_buffer = e.buffers + e.buffer_count;
     editor_init_buffer(e.active_buffer);
-    e.active_buffer->filename = strdup(filename);
-    editor_select_syntax_highlight(); //TODO: make a new version that takes buffer index into account
+    e.active_buffer->filename = filename == NULL ? NULL : strdup(filename);
+    editor_select_syntax_highlight();
 
-    if (access(filename, F_OK) == 0) {
+    if (filename != NULL && access(filename, F_OK) == 0) {
         FILE* fp = fopen(filename, "r");
         if (!fp) die("fopen");
 
@@ -629,7 +629,7 @@ void editor_open_buffer(char* filename) {
         while ((linelen = getline(&line, &line_capacity, fp)) != -1) {
             while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] =='\r'))
                 linelen--;
-            editor_insert_row(e.active_buffer->num_rows, line, linelen); //TODO: make a version that uses buffer
+            editor_insert_row(e.active_buffer->num_rows, line, linelen);
         }
         free(line);
         fclose(fp);
@@ -637,6 +637,7 @@ void editor_open_buffer(char* filename) {
         editor_insert_row(0, "", 0);
     } 
 
+    e.active_buffer->dirty = 0;
     e.buffer_count++;
 
     //where ever the 10 buffer properties are set/get, use e.buffers[e.active_buffer] to get EditorBuffer
@@ -645,13 +646,16 @@ void editor_open_buffer(char* filename) {
 
 void editor_save() {
     if (e.active_buffer->filename == NULL) {
+        editor_set_status_message("Save using :w [filename]");
+        return;
+        /*
         e.active_buffer->filename = editor_prompt("Save as: %s (ESC to cancel)", NULL);
         if (e.active_buffer->filename == NULL) {
             editor_set_status_message("Save aborted");
             return;
-        }
-        editor_select_syntax_highlight();
+        }*/
     }
+    editor_select_syntax_highlight();
 
     int len;
     char* buffer_str = editor_rows_to_string(&len);
@@ -1138,6 +1142,15 @@ void editor_process_keypress() {
                                 editor_open_buffer(filename);
                             }
                             break;
+                        case 'w':
+                            {
+                                int str_len = clen - 2 < 128 ? clen - 2 : 127;
+                                e.active_buffer->filename = malloc(str_len + 1);
+                                memcpy(&e.active_buffer->filename[0], &command[2], str_len);
+                                e.active_buffer->filename[str_len] = '\0';
+                                editor_save();
+                            }
+                            break;
                         default:
                             break;
                     }
@@ -1253,6 +1266,8 @@ int main(int argc, char* argv[]) {
     enable_raw_mode();
     init_editor();
     if (argc >= 2) {
+        editor_open_buffer(argv[1]);
+    } else {
         editor_open_buffer(argv[1]);
     }
 
