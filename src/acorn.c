@@ -54,7 +54,9 @@ enum EditorKey {
 
 enum EditorMode {
     MODE_COMMAND,
-    MODE_INSERT 
+    MODE_INSERT,
+    MODE_VISUAL,
+    MODE_VISUAL_LINE
 };
 
 enum EditorHighlight {
@@ -85,6 +87,7 @@ struct EditorSyntax {
 struct EditorBuffer {
     //NOTE: cursor_x and cursor_y now refers to position in file, NOT position on screen
     int cursor_x, cursor_y;
+    int anchor_x, anchor_y;
     int render_x;
     int row_offset;
     int col_offset;
@@ -595,6 +598,8 @@ char* editor_rows_to_string(int* buffer_length) {
 void editor_init_buffer(struct EditorBuffer* buffer) {
     buffer->cursor_x = 0;
     buffer->cursor_y = 0;
+    buffer->anchor_x = 0;
+    buffer->anchor_y = 0;
     buffer->render_x = 0;
     buffer->row_offset = 0;
     buffer->col_offset = 0;
@@ -860,7 +865,11 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
-                if (iscntrl(c[j])) {
+                if (e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row) {
+                    invert_colors(ab);
+                    append_buffer_append(ab, &c[j], 1);
+                    revert_colors(ab);
+                } else if (iscntrl(c[j])) {
                     char sym = (c[j] <= 26) ? '@' + c[j] : '?';
                     invert_colors(ab);
                     append_buffer_append(ab, &sym, 1);
@@ -1094,6 +1103,10 @@ void editor_process_keypress() {
             case 'l':
                 editor_move_cursor(ARROW_RIGHT);
                 break;
+            case 'v':
+                //set anchors to x/y
+                //change mode to visual
+                break;
             case 'x':
                 editor_move_cursor(ARROW_RIGHT);
                 editor_del_char();
@@ -1104,7 +1117,7 @@ void editor_process_keypress() {
             case '$':
                 e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
                 break;
-            case ':': {
+            case ':': { //TODO: should really move all ':' commands to own function
                 char* command = editor_prompt(":%s", NULL);
                 if (command == NULL) break;
                 int clen = strlen(command);
