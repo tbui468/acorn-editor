@@ -1058,7 +1058,8 @@ void editor_process_keypress() {
             case 'a':
                 e.mode = MODE_INSERT;
                 if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
-                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
+                    e.active_buffer->cursor_x++;
+                    //e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case 'd':
                 {

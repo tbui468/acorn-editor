@@ -1,1 +1,1 @@
-add_executable(Acorn acorn.c)
+add_executable(acorn acorn.c)

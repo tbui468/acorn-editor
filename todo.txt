@@ -13,6 +13,31 @@ Todo anytime
         What did I add into the project?
 
 TODO:
+    bug: deleting last line in a file locks up file (can't insert new characters or lines)
+
+    Highlight Mode (need to be able to copy and paste - super important!)
+
+        'V' to highlight row and enter highlight mode
+            in highlight mode, 'd' is used to delete
+
+        'v' to enter highlight mode
+            need to have variable to hold position from which highlight mode was entered
+            then highlight from this position to the current cursor position
+            how to exit highlight mode?
+
+        in highlight mode:
+            'y' to copy
+
+        ctrl + c to enter multirow selection...? (not usable on windows terminal/linux)
+
+    History Stack (along with visual mode to copy/paste) is important for efficiency
+
+        'u' to undo (how to keep history...)
+            certain actions are single history actions, others are not
+                entering a string of chars all counts as one action until switching back to command mode or deleting something...?
+                deleting a line using 'dd' counts as a single history action    
+
+
     :q closes current tab (and editor if last tab)
         Finish editor_close_buffer(int)
         need to to free all buffer memory to avoid memory leaks
@@ -37,27 +62,6 @@ TODO:
         mulidelete with number + x
         numbers can also be used for 'dd' and probably other multi-key strikes too
 
-    History Stack
-
-        'u' to undo (how to keep history...)
-            certain actions are single history actions, others are not
-                entering a string of chars all counts as one action until switching back to command mode or deleting something...?
-                deleting a line using 'dd' counts as a single history action    
-
-    Highlight Mode
-
-        'V' to highlight row and enter highlight mode
-            in highlight mode, 'd' is used to delete
-
-        'v' to enter highlight mode
-            need to have variable to hold position from which highlight mode was entered
-            then highlight from this position to the current cursor position
-            how to exit highlight mode?
-
-        ctrl + c to enter multirow selection...? (not usable on windows terminal/linux)
-
-        in highlight mode:
-            'y' to copy
     
     Other stuff
         'l' should move cursor to right before last character (just like '$') and NOT to end of line (that's only 'a' or 'A') 
