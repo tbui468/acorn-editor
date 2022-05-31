@@ -13,16 +13,7 @@ Todo anytime
         What did I add into the project?
 
 TODO:
-    Keep tabs for now since some files use them, BUT
-    have the editor itself insert spaces when the user clicks tab
-
-    bug: deleting last line in a file locks up file (can't insert new characters or lines)
-    bug: highlight is all fucked up with new block cursor in command mode
-        maybe it's a good idea to rewrite the syntax highlighter
-        data types in dbgmain.c are being highlighted correctly (int, etc) either
-    bug: don't allow cursor to go beyond final character - only 'a' and 'A' should do that
-    bug: if cursor is past end of row to insert new character, going to command mode should
-        move cursor back to final character in line
+    bug: deleting last line in a file locks (up file (can't insert new characters or lines))
 
     Highlight Mode (need to be able to copy and paste - super important!)
 

@@ -1032,16 +1032,17 @@ void editor_move_cursor(int key) {
             if (e.active_buffer->cursor_y != 0) e.active_buffer->cursor_y--;
             break;
         case ARROW_RIGHT:
-            if (row && e.active_buffer->cursor_x < row->size) {
+            if (row && e.active_buffer->cursor_x < row->size - 1) {
                 e.active_buffer->cursor_x++;
             }
             break;
     }
 
+    //move cursor back if next line is shorter the the line we just came from
     row = (e.active_buffer->cursor_y >= e.active_buffer->num_rows) ? NULL : &e.active_buffer->row[e.active_buffer->cursor_y];
     int rowlen = row ? row->size : 0;
-    if (e.active_buffer->cursor_x > rowlen) {
-        e.active_buffer->cursor_x = rowlen;
+    if (e.active_buffer->cursor_x >= rowlen) {
+        e.active_buffer->cursor_x = rowlen - 1 > 0 ? rowlen - 1 : 0;
     }
 }
 
@@ -1076,8 +1077,7 @@ void editor_process_keypress() {
             case 'a':
                 e.mode = MODE_INSERT;
                 if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
-                    e.active_buffer->cursor_x++;
-                    //e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
+                    e.active_buffer->cursor_x = e.active_buffer->cursor_x == 0 ? 0 : e.active_buffer->cursor_x + 1;
                 break;
             case 'd':
                 {
@@ -1117,8 +1117,10 @@ void editor_process_keypress() {
                 //change mode to visual
                 break;
             case 'x':
-                editor_move_cursor(ARROW_RIGHT);
+                e.active_buffer->cursor_x++;
                 editor_del_char();
+                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
+                    editor_move_cursor(ARROW_LEFT);
                 break;
             case '0':
                 e.active_buffer->cursor_x = 0;
@@ -1203,9 +1205,6 @@ void editor_process_keypress() {
             case '\r':
                 editor_insert_new_line();
                 break;
-            case CTRL_KEY('c'):
-                e.mode = MODE_COMMAND;
-                break;
             case CTRL_KEY('q'):
                 if (e.active_buffer->dirty && quit_times > 0) {
                     editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
@@ -1258,7 +1257,10 @@ void editor_process_keypress() {
                 break;
             case CTRL_KEY('l'):
             case '\x1b':
-                e.mode = MODE_COMMAND; 
+                e.mode = MODE_COMMAND;
+                //check if cursor_x is on at end of row, and if so move back one space
+                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
+                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
                 break;
             default:
                 editor_insert_char(c);
