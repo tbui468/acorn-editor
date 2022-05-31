@@ -13,24 +13,31 @@ Todo anytime
         What did I add into the project?
 
 TODO:
-    tabs are fucking annoying - have acorn convert all tabs to spaces when opening a new buffer
-        saving a file will save it as a space: too bad for people who don't like that
-
+    Keep tabs for now since some files use them, BUT
+    have the editor itself insert spaces when the user clicks tab
 
     bug: deleting last line in a file locks up file (can't insert new characters or lines)
+    bug: highlight is all fucked up with new block cursor in command mode
+        maybe it's a good idea to rewrite the syntax highlighter
+        data types in dbgmain.c are being highlighted correctly (int, etc) either
+    bug: don't allow cursor to go beyond final character - only 'a' and 'A' should do that
+    bug: if cursor is past end of row to insert new character, going to command mode should
+        move cursor back to final character in line
 
     Highlight Mode (need to be able to copy and paste - super important!)
 
         While in command mode, pushing v will anchor cursor and enter visual
             using 'hjkl' will move the cursor and highlight all text between anchor and cursor
             pushing 'd' in this mode will delete highlighted text
+            pushing '<' or '>' will indent entire line 
 
         While in command mode, pushing 'V' will anchor and enter visual line mode
             using 'hjkl' will move cursor, BUT only entire lines will be highlighted at a time
             pushing 'd' in this mode will delete all selected lines
+            pushing '<' or '>' will indent entire line 
 
 
-        while in visual or visual line mode, press 'y' to copy contents to clipboard
+    while in visual or visual line mode, press 'y' to copy contents to clipboard
             clipboard can start small, and realloc to larger size if user requires it
 
         'V' to highlight row and enter highlight mode

@@ -541,8 +541,17 @@ void editor_row_del_char(struct EditorRow* row, int at) {
 
 /*** editor operations ***/
 void editor_insert_char(int c) {
-    editor_row_insert_char(&e.active_buffer->row[e.active_buffer->cursor_y], e.active_buffer->cursor_x, c);
-    e.active_buffer->cursor_x++;
+    //if \t, insert empty space a bunch of times
+    if (c == '\t') {
+        int i;
+        for (i = 0; i < ACORN_TAB_STOP; i++) {
+            editor_row_insert_char(&e.active_buffer->row[e.active_buffer->cursor_y], e.active_buffer->cursor_x, ' ');
+            e.active_buffer->cursor_x++;
+        }
+    } else {
+        editor_row_insert_char(&e.active_buffer->row[e.active_buffer->cursor_y], e.active_buffer->cursor_x, c);
+        e.active_buffer->cursor_x++;
+    }
 }
 
 void editor_insert_new_line() {
