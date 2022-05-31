@@ -1084,6 +1084,8 @@ void editor_process_keypress() {
                     int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
                     if (last_char == 'd') {
                         editor_del_row(e.active_buffer->cursor_y);
+                        if (e.active_buffer->cursor_y >= e.active_buffer->num_rows)
+                            editor_move_cursor(ARROW_UP);
                         clear_flag = 1;
                     }
                 }

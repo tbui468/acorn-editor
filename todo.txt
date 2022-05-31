@@ -13,7 +13,9 @@ Todo anytime
         What did I add into the project?
 
 TODO:
-    bug: deleting last line in a file locks (up file (can't insert new characters or lines))
+    bug: deleting last line in file should move cursor up to previous row
+    bug: deleting all rows in a file locks program (can't insert new characters or lines)
+            and then it crashes when we try to push enter/insert some characters (segmentation fault)
 
     Highlight Mode (need to be able to copy and paste - super important!)
 
