@@ -9,11 +9,38 @@ Todo anytime
 
     Create a writeup on my website of how this project was created
         Mention the tutorial and that a lot of the info was gathered from there
-        What did I take out of the project?
-        What did I add into the project?
+            VT100 terminal emulator
+        Add vim style modes: command, insert, visual
+            enum EditorMode 
+        Added vim keyboard shortcuts
+            keyhistory for 'dd'.  Numbers not implemented yet
+        Added ability to open multiple buffers (and buffer tabs on top of screen)
+            struct EditorBuffer
+            moved stuff from EditorConfig to EditorBuffer
+
+        Add the following when implemented:
+            also have key history to allow modifying keypresses with numbers 
+            Clipboard for copying when in visual mode, and pasting
+            History to allow undo/redo
 
 TODO:
-    bug: deleting last line in file should move cursor up to previous row
+    Bug: when cursor is on first char in non-empty line, 'a' still put cursor on first char (rather than after it)
+        'A' still works fine
+    Finish finding left/right borders in visual mode to highlight blocks of text not on same line
+        allow anchor to be left or right of the current cursor position
+        highlight all text between cursor and anchor
+    Turn off cursor in visual mode to make it look a little nicer
+    use 'd' in visual mode to delete all highlighted characters
+        enters command mode immediately
+    use '>' or '<' to indent entire line in visual mode (regardless of how many characters in line are highlighted)
+        enters command mode immediately
+    use 'y' in visual mode to copy highlighted text to clipboard
+        enters command mode immediately
+        define a struct EditorClipboard to store yanked data
+        'y' will copy to clipboard
+        use 'p' in command mode to paste clipboard contents
+    implement visual line mode
+    bug: hide cursor in visual mode
     bug: deleting all rows in a file locks program (can't insert new characters or lines)
             and then it crashes when we try to push enter/insert some characters (segmentation fault)
 

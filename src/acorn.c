@@ -874,10 +874,18 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
-                if (e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row) {
+                //TODO: compute left and right positions for highlighting in visual mode 
+                int visual_highlight = e.mode == MODE_VISUAL && e.active_buffer->anchor_x <= j && j <= e.active_buffer->render_x && e.active_buffer->cursor_y == file_row;
+                int is_cursor_block = e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row;
+                if (visual_highlight || is_cursor_block) {
                     invert_colors(ab);
                     append_buffer_append(ab, &c[j], 1);
                     revert_colors(ab);
+                    //reset current color
+                    if (current_color != -1) {
+                        char* c = editor_color_to_string(current_color);
+                        append_buffer_append(ab, c, strlen(c)); 
+                    }
                 } else if (iscntrl(c[j])) {
                     char sym = (c[j] <= 26) ? '@' + c[j] : '?';
                     invert_colors(ab);
@@ -1058,8 +1066,7 @@ void editor_process_keypress() {
         switch (c) {
             case 'A':
                 e.mode = MODE_INSERT;
-                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
-                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
+                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case 'G':
                 {
@@ -1076,8 +1083,8 @@ void editor_process_keypress() {
                 break;
             case 'a':
                 e.mode = MODE_INSERT;
-                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
-                    e.active_buffer->cursor_x = e.active_buffer->cursor_x == 0 ? 0 : e.active_buffer->cursor_x + 1;
+                int empty_line = e.active_buffer->row[e.active_buffer->cursor_y].size == 0 ? 1 : 0;
+                e.active_buffer->cursor_x = empty_line ? 0 : e.active_buffer->cursor_x + 1;
                 break;
             case 'd':
                 {
@@ -1115,8 +1122,9 @@ void editor_process_keypress() {
                 editor_move_cursor(ARROW_RIGHT);
                 break;
             case 'v':
-                //set anchors to x/y
-                //change mode to visual
+                e.active_buffer->anchor_x = e.active_buffer->cursor_x;
+                e.active_buffer->anchor_y = e.active_buffer->cursor_y;
+                e.mode = MODE_VISUAL;
                 break;
             case 'x':
                 e.active_buffer->cursor_x++;
@@ -1202,6 +1210,30 @@ void editor_process_keypress() {
         history_ptr++;
         history_ptr %= MAX_KEY_HISTORY;
 
+    } else if (e.mode == MODE_VISUAL) {
+        switch(c) {
+            case 'h':
+                editor_move_cursor(ARROW_LEFT);
+                break;
+            case 'j':
+                editor_move_cursor(ARROW_DOWN);
+                break;
+            case 'k':
+                editor_move_cursor(ARROW_UP);
+                break;
+            case 'l':
+                editor_move_cursor(ARROW_RIGHT);
+                break;
+            case 'v':
+                e.mode = MODE_COMMAND;
+                break;
+            case '\x1b':
+                e.mode = MODE_COMMAND;
+                //check if cursor_x is on at end of row, and if so move back one space
+                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
+                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
+                break;
+        }
     } else { //e.mode == MODE_INSERT
         switch(c) {
             case '\r':
