@@ -928,7 +928,8 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     int msglen = strlen(e.status_msg);
     if (msglen > e.screencols) msglen = e.screencols;
     int show_msg = msglen && time(NULL) - e.status_msg_time < 5 ? 1 : 0;
-    int len = snprintf(status, sizeof(status), "%s", show_msg ? e.status_msg : e.mode == MODE_INSERT ? "-- INSERT --" : "");
+    int len = snprintf(status, sizeof(status), "%s", 
+            show_msg ? e.status_msg : e.mode == MODE_INSERT ? "-- INSERT --" : e.mode == MODE_VISUAL ? "-- VISUAL --" : "");
 
     char rstatus[80];
     int rlen = snprintf(rstatus, sizeof(rstatus), "%s %s | %d/%d", e.active_buffer->dirty ? "(modified)": "",

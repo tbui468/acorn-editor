@@ -24,8 +24,7 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
-    Bug: when cursor is on first char in non-empty line, 'a' still put cursor on first char (rather than after it)
-        'A' still works fine
+    Display '-- VISUAL --' when in visual mode
     Finish finding left/right borders in visual mode to highlight blocks of text not on same line
         allow anchor to be left or right of the current cursor position
         highlight all text between cursor and anchor
