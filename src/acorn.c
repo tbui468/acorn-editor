@@ -1108,11 +1108,11 @@ void editor_process_keypress() {
     static int quit_times = ACORN_QUIT_TIMES;
     static int key_history[MAX_KEY_HISTORY] = {'&'}; //'&' is unused in command mode
     static int history_ptr = 0;
+    int clear_flag = 0;
 
     int c = editor_read_key();
 
     if (e.mode == MODE_COMMAND) {
-        int clear_flag = 0;
         switch (c) {
             case 'A':
                 editor_switch_mode(MODE_INSERT);
@@ -1250,16 +1250,24 @@ void editor_process_keypress() {
                 break;
         }
 
-        if (clear_flag) {
-            key_history[history_ptr] = '&';
-        } else {
-            key_history[history_ptr] = c;
-        }
-        history_ptr++;
-        history_ptr %= MAX_KEY_HISTORY;
-
     } else if (e.mode == MODE_VISUAL) {
         switch(c) {
+            case 'G':
+                {
+                    int times = e.active_buffer->num_rows;
+                    while (times--)
+                        editor_move_cursor(ARROW_DOWN);
+                }
+                break;
+            case 'g':
+                {
+                    int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
+                    if (last_char == 'g') {
+                        e.active_buffer->cursor_x = 0;
+                        e.active_buffer->cursor_y = 0;
+                    }
+                }
+                break;
             case 'h':
                 editor_move_cursor(ARROW_LEFT);
                 break;
@@ -1277,6 +1285,8 @@ void editor_process_keypress() {
                 break;
             case '\x1b':
                 editor_switch_mode(MODE_COMMAND);
+                break;
+            default:
                 break;
         }
     } else { //e.mode == MODE_INSERT
@@ -1343,6 +1353,14 @@ void editor_process_keypress() {
                 break;
         }
     }
+
+    if (clear_flag) {
+        key_history[history_ptr] = '&';
+    } else {
+        key_history[history_ptr] = c;
+    }
+    history_ptr++;
+    history_ptr %= MAX_KEY_HISTORY;
 
     quit_times = ACORN_QUIT_TIMES;
 }

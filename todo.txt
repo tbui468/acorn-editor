@@ -24,22 +24,22 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
-    Turn off cursor in visual and command mode to make it look a little nicer
-        only show cursor in insert mode
-        should make functions to switch mode so that we don't forget to show/hide cursor
-    Allow 'gg' and 'G' in visual mode
-        probably should put this into a function since command mode allows this too
+    bug: cursor not showing up when on empty line in command mode (we disabled cursor in command and visual mode)
+        could display highlight block on last character on empty line, but NOT after last character if line is not empty...?
     use 'd' in visual mode to delete all highlighted characters
         enters command mode immediately
     use '>' or '<' to indent entire line in visual mode (regardless of how many characters in line are highlighted)
         enters command mode immediately
+        '>' adds spaces equal to tab value to front of line
+        '<' removes spaces equals to tab value from front of line
+            if there are fewer spaces than tab value, just remove all until there are no spaces left
+            if there are no spaces, do nothin
     use 'y' in visual mode to copy highlighted text to clipboard
         enters command mode immediately
         define a struct EditorClipboard to store yanked data
+            just store a char* array, and insert \n at the end of each row
         'y' will copy to clipboard
         use 'p' in command mode to paste clipboard contents
-    implement visual line mode
-    bug: hide cursor in visual mode
     bug: deleting all rows in a file locks program (can't insert new characters or lines)
             and then it crashes when we try to push enter/insert some characters (segmentation fault)
 
