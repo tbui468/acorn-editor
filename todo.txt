@@ -24,9 +24,11 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
+    Turn off cursor in visual and command mode to make it look a little nicer
+        only show cursor in insert mode
+        should make functions to switch mode so that we don't forget to show/hide cursor
     Allow 'gg' and 'G' in visual mode
         probably should put this into a function since command mode allows this too
-    Turn off cursor in visual mode to make it look a little nicer
     use 'd' in visual mode to delete all highlighted characters
         enters command mode immediately
     use '>' or '<' to indent entire line in visual mode (regardless of how many characters in line are highlighted)

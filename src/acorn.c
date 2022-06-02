@@ -991,10 +991,12 @@ void editor_refresh_screen() {
     editor_draw_status_bar(&ab);
 
     //draw cursor
-    char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (e.active_buffer->cursor_y - e.active_buffer->row_offset) + 2,  //terminal uses index 1.  Adding 1 for tabs bar
-                                              (e.active_buffer->render_x - e.active_buffer->col_offset) + 1); //adding 1 since terminal uses starting index 1
-    append_buffer_append(&ab, buf, strlen(buf));
+    if (e.mode == MODE_INSERT) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (e.active_buffer->cursor_y - e.active_buffer->row_offset) + 2,  //terminal uses index 1.  Adding 1 for tabs bar
+                                                  (e.active_buffer->render_x - e.active_buffer->col_offset) + 1); //adding 1 since terminal uses starting index 1
+        append_buffer_append(&ab, buf, strlen(buf));
+    }
 
     append_buffer_append(&ab, SHOW_CURSOR, strlen(SHOW_CURSOR));
          
@@ -1081,6 +1083,27 @@ void editor_move_cursor(int key) {
     }
 }
 
+void editor_switch_mode(int mode) {
+    switch (mode) {
+        case MODE_COMMAND:
+            e.mode = MODE_COMMAND;
+            //check if cursor_x is on at end of row (possible in insert mode), and if so move back one space
+            if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
+                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
+            break;
+        case MODE_INSERT:
+            e.mode = MODE_INSERT;
+            break;
+        case MODE_VISUAL:
+            e.mode = MODE_VISUAL;
+            e.active_buffer->anchor_x = e.active_buffer->cursor_x;
+            e.active_buffer->anchor_y = e.active_buffer->cursor_y;
+            break;
+        default:
+            break;
+    }
+}
+
 void editor_process_keypress() {
     static int quit_times = ACORN_QUIT_TIMES;
     static int key_history[MAX_KEY_HISTORY] = {'&'}; //'&' is unused in command mode
@@ -1092,7 +1115,7 @@ void editor_process_keypress() {
         int clear_flag = 0;
         switch (c) {
             case 'A':
-                e.mode = MODE_INSERT;
+                editor_switch_mode(MODE_INSERT);
                 e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
                 break;
             case 'G':
@@ -1109,7 +1132,7 @@ void editor_process_keypress() {
                 if (e.active_buffer - e.buffers < e.buffer_count - 1) e.active_buffer++;
                 break;
             case 'a':
-                e.mode = MODE_INSERT;
+                editor_switch_mode(MODE_INSERT);
                 int empty_line = e.active_buffer->row[e.active_buffer->cursor_y].size == 0 ? 1 : 0;
                 e.active_buffer->cursor_x = empty_line ? 0 : e.active_buffer->cursor_x + 1;
                 break;
@@ -1134,7 +1157,7 @@ void editor_process_keypress() {
                 }
                 break;
             case 'i':
-                e.mode = MODE_INSERT;
+                editor_switch_mode(MODE_INSERT);
                 break;
             case 'h':
                 editor_move_cursor(ARROW_LEFT);
@@ -1149,9 +1172,7 @@ void editor_process_keypress() {
                 editor_move_cursor(ARROW_RIGHT);
                 break;
             case 'v':
-                e.active_buffer->anchor_x = e.active_buffer->cursor_x;
-                e.active_buffer->anchor_y = e.active_buffer->cursor_y;
-                e.mode = MODE_VISUAL;
+                editor_switch_mode(MODE_VISUAL);
                 break;
             case 'x':
                 e.active_buffer->cursor_x++;
@@ -1252,13 +1273,10 @@ void editor_process_keypress() {
                 editor_move_cursor(ARROW_RIGHT);
                 break;
             case 'v':
-                e.mode = MODE_COMMAND;
+                editor_switch_mode(MODE_COMMAND);
                 break;
             case '\x1b':
-                e.mode = MODE_COMMAND;
-                //check if cursor_x is on at end of row, and if so move back one space
-                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
-                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
+                editor_switch_mode(MODE_COMMAND);
                 break;
         }
     } else { //e.mode == MODE_INSERT
@@ -1318,10 +1336,7 @@ void editor_process_keypress() {
                 break;
             case CTRL_KEY('l'):
             case '\x1b':
-                e.mode = MODE_COMMAND;
-                //check if cursor_x is on at end of row, and if so move back one space
-                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
-                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
+                editor_switch_mode(MODE_COMMAND);
                 break;
             default:
                 editor_insert_char(c);
