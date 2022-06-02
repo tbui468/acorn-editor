@@ -56,7 +56,8 @@ enum EditorMode {
     MODE_COMMAND,
     MODE_INSERT,
     MODE_VISUAL,
-    MODE_VISUAL_LINE
+    MODE_VISUAL_LINE,
+    MODE_VISUAL_BLOCK
 };
 
 enum EditorHighlight {
@@ -954,8 +955,27 @@ void editor_draw_status_bar(struct AppendBuffer* ab) {
     int msglen = strlen(e.status_msg);
     if (msglen > e.screencols) msglen = e.screencols;
     int show_msg = msglen && time(NULL) - e.status_msg_time < 5 ? 1 : 0;
-    int len = snprintf(status, sizeof(status), "%s", 
-            show_msg ? e.status_msg : e.mode == MODE_INSERT ? "-- INSERT --" : e.mode == MODE_VISUAL ? "-- VISUAL --" : "");
+    
+    char* mode_str;
+    switch (e.mode) {
+        case MODE_INSERT:
+            mode_str = "-- INSERT --";
+            break;
+        case MODE_VISUAL:
+            mode_str = "-- VISUAL --";
+            break;
+        case MODE_VISUAL_LINE:
+            mode_str = "-- VISUAL LINE --";
+            break;
+        case MODE_VISUAL_BLOCK:
+            mode_str = "-- VISUAL BLOCK --";
+            break;
+        default:
+            mode_str = "-- COMMAND --";
+            break;
+    }
+
+    int len = snprintf(status, sizeof(status), "%s", show_msg ? e.status_msg : mode_str);
 
     char rstatus[80];
     int rlen = snprintf(rstatus, sizeof(rstatus), "%s %s | %d/%d", e.active_buffer->dirty ? "(modified)": "",
@@ -1099,6 +1119,16 @@ void editor_switch_mode(int mode) {
             e.active_buffer->anchor_x = e.active_buffer->cursor_x;
             e.active_buffer->anchor_y = e.active_buffer->cursor_y;
             break;
+        case MODE_VISUAL_LINE:
+            e.mode = MODE_VISUAL_LINE;
+            e.active_buffer->anchor_x = e.active_buffer->cursor_x;
+            e.active_buffer->anchor_y = e.active_buffer->cursor_y;
+            break;
+        case MODE_VISUAL_BLOCK:
+            e.mode = MODE_VISUAL_BLOCK;
+            e.active_buffer->anchor_x = e.active_buffer->cursor_x;
+            e.active_buffer->anchor_y = e.active_buffer->cursor_y;
+            break;
         default:
             break;
     }
@@ -1124,6 +1154,9 @@ void editor_process_keypress() {
                     while (times--)
                         editor_move_cursor(ARROW_DOWN);
                 }
+                break;
+            case 'V':
+                editor_switch_mode(MODE_VISUAL_LINE);
                 break;
             case 'H':
                 if (e.active_buffer - e.buffers > 0) e.active_buffer--;
@@ -1173,6 +1206,9 @@ void editor_process_keypress() {
                 break;
             case 'v':
                 editor_switch_mode(MODE_VISUAL);
+                break;
+            case CTRL_KEY('v'):
+                editor_switch_mode(MODE_VISUAL_BLOCK);
                 break;
             case 'x':
                 e.active_buffer->cursor_x++;

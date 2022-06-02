@@ -24,6 +24,20 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
+    Add more if/elses for ALL modes (command, insert, visual, visual line, visual block)
+        right now insert mode is defaulted if not command or visual mode
+    Implement Visual Line mode ('V')
+        has similar controls to visual mode, BUT all lines are selected and no partial lines are
+    Implement Visual Block mode (ctrl-v)
+        can selection blocks of text
+        pressing 'I' will insert cursor on ALL lines so that entering a key will insert a character at a given 
+            will move cursor to top left for 'I'
+            pusing escape after enter text will insert all that text into rows (could just have it insert without pushing escape too)
+            position on all rows - need to functionality on non-windows (since ctrl-v is used for pasting)
+    Undo
+        Visual block mode allows massive insertions of text, so the ability to undo would be good
+            or at least the ability to delete in visual block mode
+
     bug: cursor not showing up when on empty line in command mode (we disabled cursor in command and visual mode)
         could display highlight block on last character on empty line, but NOT after last character if line is not empty...?
     use 'd' in visual mode to delete all highlighted characters
