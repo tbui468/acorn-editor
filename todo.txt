@@ -24,10 +24,8 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
-    Display '-- VISUAL --' when in visual mode
-    Finish finding left/right borders in visual mode to highlight blocks of text not on same line
-        allow anchor to be left or right of the current cursor position
-        highlight all text between cursor and anchor
+    Allow 'gg' and 'G' in visual mode
+        probably should put this into a function since command mode allows this too
     Turn off cursor in visual mode to make it look a little nicer
     use 'd' in visual mode to delete all highlighted characters
         enters command mode immediately

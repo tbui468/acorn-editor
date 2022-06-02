@@ -845,6 +845,25 @@ void editor_draw_buffer_tabs(struct AppendBuffer* ab) {
     append_buffer_append(ab, "\r\n", 2);
 }
 
+void editor_get_borders(int* left_x, int* left_y, int* right_x, int* right_y) {
+    if (e.active_buffer->anchor_y > e.active_buffer->cursor_y) {
+        *left_x = e.active_buffer->render_x;
+        *left_y = e.active_buffer->cursor_y;
+        *right_x = e.active_buffer->anchor_x;
+        *right_y = e.active_buffer->anchor_y;
+    } else if (e.active_buffer->anchor_y < e.active_buffer->cursor_y) {
+        *left_x = e.active_buffer->anchor_x;
+        *left_y = e.active_buffer->anchor_y;
+        *right_x = e.active_buffer->render_x;
+        *right_y = e.active_buffer->cursor_y;
+    } else { //anchor and cursor on same row
+        *left_y = e.active_buffer->anchor_y;
+        *right_y = *left_y;
+        *left_x = e.active_buffer->anchor_x < e.active_buffer->render_x ? e.active_buffer->anchor_x : e.active_buffer->render_x;
+        *right_x = e.active_buffer->anchor_x < e.active_buffer->render_x ? e.active_buffer->render_x : e.active_buffer->anchor_x;
+    }
+}
+
 void editor_draw_rows(struct AppendBuffer* ab) {
     int y;
     for (y = 0; y < e.screenrows; y++) {
@@ -874,9 +893,16 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
-                //TODO: compute left and right positions for highlighting in visual mode 
-                int visual_highlight = e.mode == MODE_VISUAL && e.active_buffer->anchor_x <= j && j <= e.active_buffer->render_x && e.active_buffer->cursor_y == file_row;
+                int left_x, left_y, right_x, right_y;
+                editor_get_borders(&left_x, &left_y, &right_x, &right_y);
+                int same_line = left_y == file_row && right_y == file_row && left_x <= j && j <= right_x;
+                int middle_rows = left_y < file_row && file_row < right_y;
+                int right_of_start = right_y > left_y && file_row == left_y && left_x <= j;
+                int left_of_end = right_y > left_y && file_row == right_y && j <= right_x;
+
+                int visual_highlight = e.mode == MODE_VISUAL && (same_line || middle_rows || right_of_start || left_of_end);
                 int is_cursor_block = e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row;
+
                 if (visual_highlight || is_cursor_block) {
                     invert_colors(ab);
                     append_buffer_append(ab, &c[j], 1);
@@ -886,7 +912,7 @@ void editor_draw_rows(struct AppendBuffer* ab) {
                         char* c = editor_color_to_string(current_color);
                         append_buffer_append(ab, c, strlen(c)); 
                     }
-                } else if (iscntrl(c[j])) {
+                } else if (iscntrl(c[j])) { //TODO: combine this and above blocks into one (they share mostly same code except for symbol conversion)
                     char sym = (c[j] <= 26) ? '@' + c[j] : '?';
                     invert_colors(ab);
                     append_buffer_append(ab, &sym, 1);
