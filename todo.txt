@@ -24,10 +24,13 @@ Todo anytime
             History to allow undo/redo
 
 TODO:
-    Add more if/elses for ALL modes (command, insert, visual, visual line, visual block)
-        right now insert mode is defaulted if not command or visual mode
+    Implement highlighting in visual block mode
+        right now we have left/right edges, BUT we need to get left right sides (independent of y)
+        and top and bottom (independent of x)
+
     Implement Visual Line mode ('V')
         has similar controls to visual mode, BUT all lines are selected and no partial lines are
+        anchor needs 
     Implement Visual Block mode (ctrl-v)
         can selection blocks of text
         pressing 'I' will insert cursor on ALL lines so that entering a key will insert a character at a given 

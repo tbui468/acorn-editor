@@ -902,9 +902,15 @@ void editor_draw_rows(struct AppendBuffer* ab) {
                 int left_of_end = right_y > left_y && file_row == right_y && j <= right_x;
 
                 int visual_highlight = e.mode == MODE_VISUAL && (same_line || middle_rows || right_of_start || left_of_end);
+                int visual_line = e.mode == MODE_VISUAL_LINE && left_y <= file_row && file_row <= right_y;
+                int left = left_x < right_x ? left_x : right_x;
+                int right = left_x < right_x ? right_x : left_x;
+                int top = left_y;
+                int bottom = right_y;
+                int visual_block = e.mode == MODE_VISUAL_BLOCK && left <= j && j <= right && top <= file_row && file_row <= bottom;
                 int is_cursor_block = e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row;
 
-                if (visual_highlight || is_cursor_block) {
+                if (visual_highlight || visual_line || visual_block || is_cursor_block) {
                     invert_colors(ab);
                     append_buffer_append(ab, &c[j], 1);
                     revert_colors(ab);
@@ -1134,261 +1140,273 @@ void editor_switch_mode(int mode) {
     }
 }
 
+int editor_process_command_key(int c, int* key_history, int history_ptr) {
+    int clear_flag = 0;
+    switch (c) {
+        case 'A':
+            editor_switch_mode(MODE_INSERT);
+            e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
+            break;
+        case 'G':
+            {
+                int times = e.active_buffer->num_rows;
+                while (times--)
+                    editor_move_cursor(ARROW_DOWN);
+            }
+            break;
+        case 'V':
+            editor_switch_mode(MODE_VISUAL_LINE);
+            break;
+        case 'H':
+            if (e.active_buffer - e.buffers > 0) e.active_buffer--;
+            break;
+        case 'L':
+            if (e.active_buffer - e.buffers < e.buffer_count - 1) e.active_buffer++;
+            break;
+        case 'a':
+            editor_switch_mode(MODE_INSERT);
+            int empty_line = e.active_buffer->row[e.active_buffer->cursor_y].size == 0 ? 1 : 0;
+            e.active_buffer->cursor_x = empty_line ? 0 : e.active_buffer->cursor_x + 1;
+            break;
+        case 'd':
+            {
+                int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
+                if (last_char == 'd') {
+                    editor_del_row(e.active_buffer->cursor_y);
+                    if (e.active_buffer->cursor_y >= e.active_buffer->num_rows)
+                        editor_move_cursor(ARROW_UP);
+                    clear_flag = 1;
+                }
+            }
+            break;
+        case 'g':
+            {
+                int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
+                if (last_char == 'g') {
+                    e.active_buffer->cursor_x = 0;
+                    e.active_buffer->cursor_y = 0;
+                }
+            }
+            break;
+        case 'i':
+            editor_switch_mode(MODE_INSERT);
+            break;
+        case 'h':
+            editor_move_cursor(ARROW_LEFT);
+            break;
+        case 'j':
+            editor_move_cursor(ARROW_DOWN);
+            break;
+        case 'k':
+            editor_move_cursor(ARROW_UP);
+            break;
+        case 'l':
+            editor_move_cursor(ARROW_RIGHT);
+            break;
+        case 'v':
+            editor_switch_mode(MODE_VISUAL);
+            break;
+        case CTRL_KEY('v'):
+            editor_switch_mode(MODE_VISUAL_BLOCK);
+            break;
+        case 'x':
+            e.active_buffer->cursor_x++;
+            editor_del_char();
+            if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
+                editor_move_cursor(ARROW_LEFT);
+            break;
+        case '0':
+            e.active_buffer->cursor_x = 0;
+            break;
+        case '$':
+            e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
+            break;
+        case ':': { //TODO: should really move all ':' commands to own function
+            char* command = editor_prompt(":%s", NULL);
+            if (command == NULL) break;
+            int clen = strlen(command);
+            if (clen == 1) {
+                switch (command[0]) {
+                    case 'w':
+                        editor_save();
+                        break;
+                    case 'q':
+                        if (e.active_buffer->dirty) {
+                            editor_set_status_message("No write since last change. (Add ! to override).");
+                            break;
+                        }
+                        write(STDOUT_FILENO, "\x1b[2J", 4);
+                        write(STDOUT_FILENO, "\x1b[H", 3);
+                        exit(0);
+                        break;
+                    default:
+                        break;
+                }
+            } else if (clen == 2) {
+                if (command[0] == 'q' && command[1] == '!') {
+                    write(STDOUT_FILENO, "\x1b[2J", 4);
+                    write(STDOUT_FILENO, "\x1b[H", 3);
+                    exit(0);
+                    break;
+                }
+            } else if (clen >= 3) {
+                switch (command[0]) {
+                    case 'e':
+                        {
+                            char filename[128];
+                            int str_len = clen - 2 < 128 ? clen - 2 : 127;
+                            memcpy(&filename[0], &command[2], str_len);
+                            filename[str_len] = '\0';
+                            editor_open_buffer(filename);
+                        }
+                        break;
+                    case 'w':
+                        {
+                            int str_len = clen - 2 < 128 ? clen - 2 : 127;
+                            e.active_buffer->filename = malloc(str_len + 1);
+                            memcpy(&e.active_buffer->filename[0], &command[2], str_len);
+                            e.active_buffer->filename[str_len] = '\0';
+                            editor_save();
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            //TODO: quit, save, open buffer, swap buffer
+            break;
+        }
+        case '/': {
+            char* prompt = editor_prompt("/%s", NULL);
+            //TODO: incremental search with 'n' and 'N' to go forward/backward
+            break;
+        }
+        default:
+            break;
+    }
+
+    return clear_flag;
+}
+
+int editor_process_insert_key(int c, int* key_history, int history_ptr) {
+    int clear_flag = 0;
+    switch(c) {
+        case '\r':
+            editor_insert_new_line();
+            break;
+        case HOME_KEY:
+            e.active_buffer->cursor_x = 0;
+            break;
+        case END_KEY:
+            if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
+                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
+            break;
+        case CTRL_KEY('f'):
+            editor_find();
+            break;
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
+            editor_del_char();
+            break;
+        case PAGE_UP:
+        case PAGE_DOWN: 
+            {
+                if (c == PAGE_UP) {
+                    e.active_buffer->cursor_y = e.active_buffer->row_offset;
+                } else if (c == PAGE_DOWN) {
+                    e.active_buffer->cursor_y = e.active_buffer->row_offset + e.screenrows - 1;
+                    if (e.active_buffer->cursor_y > e.active_buffer->num_rows) e.active_buffer->cursor_y = e.active_buffer->num_rows;
+                }
+
+                int times = e.screenrows;
+                while (times--)
+                    editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+            }
+            break;
+        case ARROW_LEFT:
+        case ARROW_DOWN:
+        case ARROW_UP:
+        case ARROW_RIGHT:
+            editor_move_cursor(c);
+            break;
+        case CTRL_KEY('l'):
+        case '\x1b':
+            editor_switch_mode(MODE_COMMAND);
+            break;
+        default:
+            editor_insert_char(c);
+            break;
+    }
+    return clear_flag;
+}
+
+int editor_process_visual_key(int c, int* key_history, int history_ptr) {
+    int clear_flag = 0;
+    switch(c) {
+        case 'G':
+            {
+                int times = e.active_buffer->num_rows;
+                while (times--)
+                    editor_move_cursor(ARROW_DOWN);
+            }
+            break;
+        case 'g':
+            {
+                int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
+                if (last_char == 'g') {
+                    e.active_buffer->cursor_x = 0;
+                    e.active_buffer->cursor_y = 0;
+                }
+            }
+            break;
+        case 'h':
+            editor_move_cursor(ARROW_LEFT);
+            break;
+        case 'j':
+            editor_move_cursor(ARROW_DOWN);
+            break;
+        case 'k':
+            editor_move_cursor(ARROW_UP);
+            break;
+        case 'l':
+            editor_move_cursor(ARROW_RIGHT);
+            break;
+        case 'v':
+            editor_switch_mode(MODE_COMMAND);
+            break;
+        case '\x1b':
+            editor_switch_mode(MODE_COMMAND);
+            break;
+        default:
+            break;
+    }
+    return clear_flag;
+}
+
 void editor_process_keypress() {
-    static int quit_times = ACORN_QUIT_TIMES;
     static int key_history[MAX_KEY_HISTORY] = {'&'}; //'&' is unused in command mode
     static int history_ptr = 0;
     int clear_flag = 0;
 
     int c = editor_read_key();
 
-    if (e.mode == MODE_COMMAND) {
-        switch (c) {
-            case 'A':
-                editor_switch_mode(MODE_INSERT);
-                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
-                break;
-            case 'G':
-                {
-                    int times = e.active_buffer->num_rows;
-                    while (times--)
-                        editor_move_cursor(ARROW_DOWN);
-                }
-                break;
-            case 'V':
-                editor_switch_mode(MODE_VISUAL_LINE);
-                break;
-            case 'H':
-                if (e.active_buffer - e.buffers > 0) e.active_buffer--;
-                break;
-            case 'L':
-                if (e.active_buffer - e.buffers < e.buffer_count - 1) e.active_buffer++;
-                break;
-            case 'a':
-                editor_switch_mode(MODE_INSERT);
-                int empty_line = e.active_buffer->row[e.active_buffer->cursor_y].size == 0 ? 1 : 0;
-                e.active_buffer->cursor_x = empty_line ? 0 : e.active_buffer->cursor_x + 1;
-                break;
-            case 'd':
-                {
-                    int last_char = key_history[(history_ptr -1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
-                    if (last_char == 'd') {
-                        editor_del_row(e.active_buffer->cursor_y);
-                        if (e.active_buffer->cursor_y >= e.active_buffer->num_rows)
-                            editor_move_cursor(ARROW_UP);
-                        clear_flag = 1;
-                    }
-                }
-                break;
-            case 'g':
-                {
-                    int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
-                    if (last_char == 'g') {
-                        e.active_buffer->cursor_x = 0;
-                        e.active_buffer->cursor_y = 0;
-                    }
-                }
-                break;
-            case 'i':
-                editor_switch_mode(MODE_INSERT);
-                break;
-            case 'h':
-                editor_move_cursor(ARROW_LEFT);
-                break;
-            case 'j':
-                editor_move_cursor(ARROW_DOWN);
-                break;
-            case 'k':
-                editor_move_cursor(ARROW_UP);
-                break;
-            case 'l':
-                editor_move_cursor(ARROW_RIGHT);
-                break;
-            case 'v':
-                editor_switch_mode(MODE_VISUAL);
-                break;
-            case CTRL_KEY('v'):
-                editor_switch_mode(MODE_VISUAL_BLOCK);
-                break;
-            case 'x':
-                e.active_buffer->cursor_x++;
-                editor_del_char();
-                if (e.active_buffer->cursor_x >= e.active_buffer->row[e.active_buffer->cursor_y].size)
-                    editor_move_cursor(ARROW_LEFT);
-                break;
-            case '0':
-                e.active_buffer->cursor_x = 0;
-                break;
-            case '$':
-                e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size - 1;
-                break;
-            case ':': { //TODO: should really move all ':' commands to own function
-                char* command = editor_prompt(":%s", NULL);
-                if (command == NULL) break;
-                int clen = strlen(command);
-                if (clen == 1) {
-                    switch (command[0]) {
-                        case 'w':
-                            editor_save();
-                            break;
-                        case 'q':
-                            if (e.active_buffer->dirty) {
-                                editor_set_status_message("No write since last change. (Add ! to override).");
-                                return;
-                            }
-                            write(STDOUT_FILENO, "\x1b[2J", 4);
-                            write(STDOUT_FILENO, "\x1b[H", 3);
-                            exit(0);
-                            break;
-                        default:
-                            break;
-                    }
-                } else if (clen == 2) {
-                    if (command[0] == 'q' && command[1] == '!') {
-                        write(STDOUT_FILENO, "\x1b[2J", 4);
-                        write(STDOUT_FILENO, "\x1b[H", 3);
-                        exit(0);
-                        break;
-                    }
-                } else if (clen >= 3) {
-                    switch (command[0]) {
-                        case 'e':
-                            {
-                                char filename[128];
-                                int str_len = clen - 2 < 128 ? clen - 2 : 127;
-                                memcpy(&filename[0], &command[2], str_len);
-                                filename[str_len] = '\0';
-                                editor_open_buffer(filename);
-                            }
-                            break;
-                        case 'w':
-                            {
-                                int str_len = clen - 2 < 128 ? clen - 2 : 127;
-                                e.active_buffer->filename = malloc(str_len + 1);
-                                memcpy(&e.active_buffer->filename[0], &command[2], str_len);
-                                e.active_buffer->filename[str_len] = '\0';
-                                editor_save();
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                //TODO: quit, save, open buffer, swap buffer
-                break;
-            }
-            case '/': {
-                char* prompt = editor_prompt("/%s", NULL);
-                //TODO: incremental search with 'n' and 'N' to go forward/backward
-                break;
-            }
-            default:
-                break;
-        }
-
-    } else if (e.mode == MODE_VISUAL) {
-        switch(c) {
-            case 'G':
-                {
-                    int times = e.active_buffer->num_rows;
-                    while (times--)
-                        editor_move_cursor(ARROW_DOWN);
-                }
-                break;
-            case 'g':
-                {
-                    int last_char = key_history[(history_ptr - 1 + MAX_KEY_HISTORY) % MAX_KEY_HISTORY];
-                    if (last_char == 'g') {
-                        e.active_buffer->cursor_x = 0;
-                        e.active_buffer->cursor_y = 0;
-                    }
-                }
-                break;
-            case 'h':
-                editor_move_cursor(ARROW_LEFT);
-                break;
-            case 'j':
-                editor_move_cursor(ARROW_DOWN);
-                break;
-            case 'k':
-                editor_move_cursor(ARROW_UP);
-                break;
-            case 'l':
-                editor_move_cursor(ARROW_RIGHT);
-                break;
-            case 'v':
-                editor_switch_mode(MODE_COMMAND);
-                break;
-            case '\x1b':
-                editor_switch_mode(MODE_COMMAND);
-                break;
-            default:
-                break;
-        }
-    } else { //e.mode == MODE_INSERT
-        switch(c) {
-            case '\r':
-                editor_insert_new_line();
-                break;
-            case CTRL_KEY('q'):
-                if (e.active_buffer->dirty && quit_times > 0) {
-                    editor_set_status_message("WARNING!!! File has unsaved changes.  Press Ctrl-Q %d more times to quit.", quit_times);
-                    quit_times--;
-                    return;
-                }
-                write(STDOUT_FILENO, "\x1b[2J", 4);
-                write(STDOUT_FILENO, "\x1b[H", 3);
-                exit(0);
-                break;
-            case CTRL_KEY('s'):
-                editor_save();
-                break;
-            case HOME_KEY:
-                e.active_buffer->cursor_x = 0;
-                break;
-            case END_KEY:
-                if (e.active_buffer->cursor_y < e.active_buffer->num_rows)
-                    e.active_buffer->cursor_x = e.active_buffer->row[e.active_buffer->cursor_y].size;
-                break;
-            case CTRL_KEY('f'):
-                editor_find();
-                break;
-            case BACKSPACE:
-            case CTRL_KEY('h'):
-            case DEL_KEY:
-                if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
-                editor_del_char();
-                break;
-            case PAGE_UP:
-            case PAGE_DOWN: 
-                {
-                    if (c == PAGE_UP) {
-                        e.active_buffer->cursor_y = e.active_buffer->row_offset;
-                    } else if (c == PAGE_DOWN) {
-                        e.active_buffer->cursor_y = e.active_buffer->row_offset + e.screenrows - 1;
-                        if (e.active_buffer->cursor_y > e.active_buffer->num_rows) e.active_buffer->cursor_y = e.active_buffer->num_rows;
-                    }
-
-                    int times = e.screenrows;
-                    while (times--)
-                        editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-                }
-                break;
-            case ARROW_LEFT:
-            case ARROW_DOWN:
-            case ARROW_UP:
-            case ARROW_RIGHT:
-                editor_move_cursor(c);
-                break;
-            case CTRL_KEY('l'):
-            case '\x1b':
-                editor_switch_mode(MODE_COMMAND);
-                break;
-            default:
-                editor_insert_char(c);
-                break;
-        }
+    switch (e.mode) {
+        case MODE_COMMAND:
+            clear_flag = editor_process_command_key(c, key_history, history_ptr);
+            break;
+        case MODE_INSERT:
+            clear_flag = editor_process_insert_key(c, key_history, history_ptr);
+            break;
+        case MODE_VISUAL:
+        case MODE_VISUAL_LINE:
+        case MODE_VISUAL_BLOCK:
+            clear_flag = editor_process_visual_key(c, key_history, history_ptr);
+        default:
+            break;
     }
+
 
     if (clear_flag) {
         key_history[history_ptr] = '&';
@@ -1397,8 +1415,6 @@ void editor_process_keypress() {
     }
     history_ptr++;
     history_ptr %= MAX_KEY_HISTORY;
-
-    quit_times = ACORN_QUIT_TIMES;
 }
 
 /*** init ***/
