@@ -852,6 +852,7 @@ void editor_draw_buffer_tabs(struct AppendBuffer* ab) {
     append_buffer_append(ab, "\r\n", 2);
 }
 
+//TODO: This might be bugged if line goes off the screen (eg, column offset is not zero)
 void editor_get_borders(int* left_x, int* left_y, int* right_x, int* right_y) {
     if (e.active_buffer->anchor_y > e.active_buffer->cursor_y) {
         *left_x = e.active_buffer->render_x;
@@ -869,6 +870,25 @@ void editor_get_borders(int* left_x, int* left_y, int* right_x, int* right_y) {
         *left_x = e.active_buffer->anchor_x < e.active_buffer->render_x ? e.active_buffer->anchor_x : e.active_buffer->render_x;
         *right_x = e.active_buffer->anchor_x < e.active_buffer->render_x ? e.active_buffer->render_x : e.active_buffer->anchor_x;
     }
+}
+
+int editor_char_between_anchors(int file_row, int j, int left_x, int left_y, int right_x, int right_y) {
+    int same_line = left_y == file_row && right_y == file_row && left_x <= j && j <= right_x;
+    int middle_rows = left_y < file_row && file_row < right_y;
+    int right_of_start = right_y > left_y && file_row == left_y && left_x <= j;
+    int left_of_end = right_y > left_y && file_row == right_y && j <= right_x;
+
+    int visual_highlight = e.mode == MODE_VISUAL && (same_line || middle_rows || right_of_start || left_of_end);
+
+    int visual_line = e.mode == MODE_VISUAL_LINE && left_y <= file_row && file_row <= right_y;
+
+    int left = left_x < right_x ? left_x : right_x;
+    int right = left_x < right_x ? right_x : left_x;
+    int top = left_y;
+    int bottom = right_y;
+    int visual_block = e.mode == MODE_VISUAL_BLOCK && left <= j && j <= right && top <= file_row && file_row <= bottom;
+
+    return visual_block || visual_highlight || visual_line;
 }
 
 void editor_draw_rows(struct AppendBuffer* ab) {
@@ -902,21 +922,10 @@ void editor_draw_rows(struct AppendBuffer* ab) {
             for (j = 0; j < len; j++) {
                 int left_x, left_y, right_x, right_y;
                 editor_get_borders(&left_x, &left_y, &right_x, &right_y);
-                int same_line = left_y == file_row && right_y == file_row && left_x <= j && j <= right_x;
-                int middle_rows = left_y < file_row && file_row < right_y;
-                int right_of_start = right_y > left_y && file_row == left_y && left_x <= j;
-                int left_of_end = right_y > left_y && file_row == right_y && j <= right_x;
-
-                int visual_highlight = e.mode == MODE_VISUAL && (same_line || middle_rows || right_of_start || left_of_end);
-                int visual_line = e.mode == MODE_VISUAL_LINE && left_y <= file_row && file_row <= right_y;
-                int left = left_x < right_x ? left_x : right_x;
-                int right = left_x < right_x ? right_x : left_x;
-                int top = left_y;
-                int bottom = right_y;
-                int visual_block = e.mode == MODE_VISUAL_BLOCK && left <= j && j <= right && top <= file_row && file_row <= bottom;
+                int visual_highlight = editor_char_between_anchors(file_row, j, left_x, left_y, right_x, right_y);
                 int is_cursor_block = e.mode == MODE_COMMAND && e.active_buffer->render_x == j && e.active_buffer->cursor_y == file_row;
 
-                if (visual_highlight || visual_line || visual_block || is_cursor_block) {
+                if (visual_highlight || is_cursor_block) {
                     invert_colors(ab);
                     append_buffer_append(ab, &c[j], 1);
                     revert_colors(ab);

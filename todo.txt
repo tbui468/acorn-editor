@@ -26,11 +26,13 @@ Todo anytime
 TODO:
     'x' or 'd' in visual modes will delete selected text 
         need to set_clear flag after 'd' so that pushing it again won't trigger 'dd' command
+        use 'editor_char_between_anchors' function to determine if character should be deleted
+        BUT deleting chars will alter the anchors and selected characters - need to anchor some guys
 
-        should make a function that determines if the given j + file_row is highlighted or not
-            then use that function both for highlighting AND delete is 'x' or 'd' is pressed
+        IDEA: Just count how many characters need to be deleted, position cursor at beginning, and
+            then call delete a bunch of times until count is reached!!!
 
-            visual_mode_highlight(...) returns a bool
+            get anchor positions.  Iterate from left to right, keeping track of highlighted positions
 
     use 'y' in visual mode to copy highlighted text to clipboard
         enters command mode immediately
@@ -47,6 +49,9 @@ TODO:
     Undo
         Visual block mode allows massive insertions of text, so the ability to undo would be good
             or at least the ability to delete in visual block mode
+
+    In command mode, 'ci(' will delete all characters in closest surrounding () (same for ci[, ci{)
+        and then change to insert mode with cursor between the ()
 
     bug: cursor not showing up when on empty line in command mode (we disabled cursor in command and visual mode)
         could display highlight block on last character on empty line, but NOT after last character if line is not empty...?
